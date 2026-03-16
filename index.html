@@ -153,46 +153,43 @@ function applyRole(path, roleKey) {
   return { ...path, cashComp: path.cashComp.map(v => Math.round(v * r.cashAdj)), equityGrant: path.equityGrant.map(v => Math.round(v * r.eqAdj)) };
 }
 function computeSimpleEV(path, horizon) {
-  let cum = 1, total = 0;
+  let total = 0;
   for (let y = 0; y < horizon; y++) {
-    const s = path.stayProb[y], rem = horizon - y;
+    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1], rem = horizon - y;
     const eq = path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
-    if (path.founderEquity && path.founderEqProb) f = cum * s * path.founderEquity[y] * path.founderEqProb[y];
-    total += cum * s * (path.cashComp[y] + eq) + cum * (1 - s) * path.exitComp[y] * rem + f;
-    cum *= s;
+    if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
+    total += s * (path.cashComp[y] + eq) + (prevS - s) * path.exitComp[y] * rem + f;
   }
   return total;
 }
 function computeSimpleBreakdown(path, horizon) {
-  let cum = 1, cC = 0, cE = 0;
+  let cC = 0, cE = 0;
   const data = [];
   for (let y = 0; y < horizon; y++) {
-    const s = path.stayProb[y], rem = horizon - y;
-    const cash = cum * s * path.cashComp[y] + cum * (1 - s) * path.exitComp[y] * rem;
-    const eq = cum * s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
+    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1], rem = horizon - y;
+    const cash = s * path.cashComp[y] + (prevS - s) * path.exitComp[y] * rem;
+    const eq = s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
-    if (path.founderEquity && path.founderEqProb) f = cum * s * path.founderEquity[y] * path.founderEqProb[y];
+    if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
     cC += cash; cE += eq + f;
     data.push({ year: `Y${y + 1}`, cash: Math.round(cash), equity: Math.round(eq + f), cumCash: Math.round(cC), cumEquity: Math.round(cE), cumTotal: Math.round(cC + cE) });
-    cum *= s;
   }
   return data;
 }
 function computeDetailedEV(rawPath, horizon, role) {
   const p = rawPath.roles?.[role] ? applyRole(rawPath, role) : rawPath;
-  let cum = 1, total = 0, cashTotal = 0, eqTotal = 0;
+  let total = 0, cashTotal = 0, eqTotal = 0;
   const yearly = [];
   for (let y = 0; y < horizon; y++) {
-    const s = p.stayProb[y], rem = horizon - y;
-    const cashEV = cum * s * p.cashComp[y] + cum * (1 - s) * p.exitComp[y] * rem;
+    const s = p.stayProb[y], prevS = y === 0 ? 1 : p.stayProb[y - 1], rem = horizon - y;
+    const cashEV = s * p.cashComp[y] + (prevS - s) * p.exitComp[y] * rem;
     let eqEV = 0;
-    if (p.scenarios) { for (const sc of Object.values(p.scenarios)) { eqEV += cum * s * p.equityGrant[y] * sc.mult[y] * sc.prob[y]; } }
+    if (p.scenarios) { for (const sc of Object.values(p.scenarios)) { eqEV += s * p.equityGrant[y] * sc.mult[y] * sc.prob[y]; } }
     let fEV = 0;
-    if (p.founderEquity && p.founderEqProb) fEV = cum * s * p.founderEquity[y] * p.founderEqProb[y];
+    if (p.founderEquity && p.founderEqProb) fEV = s * p.founderEquity[y] * p.founderEqProb[y];
     cashTotal += cashEV; eqTotal += eqEV + fEV; total += cashEV + eqEV + fEV;
     yearly.push({ year: `Y${y + 1}`, cash: Math.round(cashEV), equity: Math.round(eqEV + fEV), cumCash: Math.round(cashTotal), cumEquity: Math.round(eqTotal), cumTotal: Math.round(total) });
-    cum *= s;
   }
   return { total, cashTotal, eqTotal, yearly };
 }
