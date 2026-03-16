@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Career EV Analyzer</title>
+<meta name="description" content="Compare the expected value of different career paths — consulting, big tech, startups, and founding.">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/recharts/2.12.7/Recharts.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.9/babel.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pako/2.1.0/pako.min.js"></script>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: #08080d; color: #e0e0e0; font-family: 'DM Sans', sans-serif; }
+  input[type=number]::-webkit-inner-spin-button, input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; }
+  input[type=number] { -moz-appearance: textfield; }
+  textarea { font-family: 'Space Mono', monospace; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script type="text/babel">
+const { useState, useMemo, useCallback, Fragment, useEffect, useRef } = React;
+const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } = Recharts;
+
+const ROLE_LABELS = { pm: "Product Manager", cos: "Chief of Staff", stratops: "Strategy & Ops", bizops: "BizOps" };
+const YEARS = [1,2,3,4,5,6,7,8,9,10];
+const dc = o => JSON.parse(JSON.stringify(o));
+
+// ── URL STATE ──
+function compressState(obj) {
+  try {
+    const json = JSON.stringify(obj);
+    const compressed = pako.deflate(json);
+    let binary = '';
+    for (let i = 0; i < compressed.length; i++) binary += String.fromCharCode(compressed[i]);
+    return btoa(binary).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+  } catch { return null; }
+}
+
+function decompressState(str) {
+  try {
+    const padded = str.replace(/-/g, '+').replace(/_/g, '/');
+    const binary = atob(padded);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+    const json = pako.inflate(bytes, { to: 'string' });
+    return JSON.parse(json);
+  } catch { return null; }
+}
+
+function writeHash(state) {
+  const encoded = compressState(state);
+  if (encoded) {
+    try { window.history.replaceState(null, '', '#' + encoded); } catch {}
+  }
+}
+
+function readHash() {
+  const hash = window.location.hash.slice(1);
+  if (!hash) return null;
+  return decompressState(hash);
+}
+
+// ── PRESETS ──
+const SIMPLE_PRESETS = {
+  paths: {
+    "Consulting": {
+      cashComp:[240,275,340,420,530,660,820,1000,1250,1600],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+      stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[200,230,270,320,370,420,470,520,570,620],
+      description:"Blended MBB/T2. Post-MBA track. All cash + profit share at senior levels.",color:"#6366F1",hasEquity:false,
+    },
+    "Big Tech (Generalist)": {
+      cashComp:[185,200,220,245,275,310,345,385,425,470],equityGrant:[95,120,155,195,240,285,335,385,440,500],equityMultiplier:[1.0,1.08,1.15,1.22,1.30,1.35,1.40,1.45,1.50,1.55],equityZeroProb:[0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.04,0.05],
+      stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],exitComp:[200,220,245,270,295,320,345,370,395,420],
+      description:"Blends FAANG + high-growth tech. L5→L7+ track. Cash includes bonus.",color:"#10B981",hasEquity:true,
+      roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
+    },
+    "High-Growth Startup": {
+      cashComp:[145,155,170,185,205,230,260,295,335,380],equityGrant:[65,55,50,45,45,50,55,65,75,85],equityMultiplier:[1.0,1.5,2.2,3.5,5.5,8.0,12.0,17.0,23.0,30.0],equityZeroProb:[0.35,0.35,0.36,0.38,0.40,0.43,0.46,0.49,0.52,0.55],
+      stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],exitComp:[180,200,220,245,270,295,320,345,370,395],
+      description:"Series B-C (Anthropic/Anduril/Scale tier). Lower cash, massive equity upside — or zero.",color:"#F59E0B",hasEquity:true,
+      roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.10},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
+    },
+    "Found a Company": {
+      cashComp:[80,90,105,125,155,200,270,380,500,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+      stayProb:[0.80,0.65,0.50,0.40,0.30,0.25,0.20,0.18,0.15,0.12],exitComp:[200,220,245,270,295,320,345,370,395,420],
+      founderEquity:[0,0,0,0,600,1500,3500,7000,12000,22000],founderEqProb:[0,0,0,0,0.08,0.06,0.05,0.04,0.035,0.03],
+      description:"Founder path. Low salary, equity as discrete liquidity events.",color:"#EF4444",hasEquity:false,isFounder:true,
+    },
+  },
+};
+
+const DETAILED_PRESETS = {
+  "MBB (McKinsey/BCG/Bain)": {
+    cashComp:[260,300,380,480,600,750,950,1200,1600,2200],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[210,250,300,360,420,480,540,600,660,720],
+    scenarios:null,description:"Post-MBA Associate → EM → AP → Partner. ~$260K Y1 TC.",color:"#6366F1",hasEquity:false,
+  },
+  "Oliver Wyman": {
+    cashComp:[210,245,310,390,490,600,740,920,1150,1500],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    stayProb:[0.95,0.90,0.83,0.73,0.63,0.53,0.45,0.38,0.32,0.27],exitComp:[195,230,275,330,385,440,495,550,605,660],
+    scenarios:null,description:"~15-20% below MBB per level. Consultant → Partner.",color:"#8B5CF6",hasEquity:false,
+  },
+  "FAANG (Meta/Google/Amazon)": {
+    cashComp:[180,195,215,240,270,305,340,380,420,465],equityGrant:[90,115,145,185,225,270,315,365,420,480],
+    stayProb:[0.93,0.88,0.82,0.76,0.70,0.64,0.58,0.53,0.48,0.44],exitComp:[200,220,245,270,295,320,345,370,395,420],
+    scenarios:{
+      bear:{label:"Bear (flat/down)",mult:[0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.5,0.45,0.4],prob:[0.15,0.15,0.18,0.18,0.20,0.20,0.22,0.22,0.25,0.25]},
+      base:{label:"Base (steady growth)",mult:[1.0,1.08,1.15,1.22,1.30,1.38,1.45,1.52,1.60,1.68],prob:[0.70,0.70,0.67,0.65,0.62,0.60,0.58,0.56,0.53,0.50]},
+      bull:{label:"Bull (strong run)",mult:[1.2,1.4,1.7,2.0,2.4,2.8,3.3,3.8,4.4,5.0],prob:[0.15,0.15,0.15,0.17,0.18,0.20,0.20,0.22,0.22,0.25]},
+    },description:"Established FAANG. Stable RSUs. L5→L7 track.",color:"#10B981",hasEquity:true,
+    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
+  },
+  "High-Growth Tech (Nvidia/OpenAI)": {
+    cashComp:[190,210,230,255,285,320,355,395,440,490],equityGrant:[110,140,175,215,260,310,365,425,490,560],
+    stayProb:[0.92,0.85,0.78,0.72,0.65,0.58,0.52,0.47,0.42,0.38],exitComp:[210,235,260,290,320,350,380,410,440,470],
+    scenarios:{
+      bear:{label:"Bear (correction)",mult:[0.7,0.6,0.5,0.4,0.35,0.3,0.25,0.2,0.2,0.15],prob:[0.20,0.20,0.22,0.22,0.25,0.25,0.28,0.28,0.30,0.30]},
+      base:{label:"Base (strong growth)",mult:[1.0,1.3,1.7,2.2,3.0,4.0,5.2,6.5,8.0,10.0],prob:[0.55,0.55,0.53,0.50,0.47,0.45,0.42,0.40,0.38,0.35]},
+      bull:{label:"Bull (AI supercycle)",mult:[1.3,2.0,3.5,5.5,9.0,14.0,20.0,28.0,38.0,50.0],prob:[0.25,0.25,0.25,0.28,0.28,0.30,0.30,0.32,0.32,0.35]},
+    },description:"AI-era high-flyers. Massive equity upside — or correction.",color:"#06B6D4",hasEquity:true,
+    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.90,eqAdj:0.82},stratops:{cashAdj:0.93,eqAdj:0.90},bizops:{cashAdj:0.88,eqAdj:0.85}},
+  },
+  "Startup: Series A-B": {
+    cashComp:[130,140,150,165,182,200,225,255,290,330],equityGrant:[70,55,45,40,38,40,45,50,58,68],
+    stayProb:[0.85,0.75,0.65,0.56,0.48,0.40,0.34,0.29,0.25,0.21],exitComp:[175,195,220,248,275,300,325,350,375,400],
+    scenarios:{
+      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.45,0.45,0.47,0.48,0.50,0.52,0.55,0.57,0.60,0.62]},
+      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,9.0,13.0,18.0,24.0,32.0],prob:[0.45,0.43,0.40,0.38,0.35,0.32,0.28,0.25,0.22,0.20]},
+      bull:{label:"Bull (breakout)",mult:[1.0,3.0,7.0,15.0,30.0,55.0,90.0,140.0,200.0,300.0],prob:[0.10,0.12,0.13,0.14,0.15,0.16,0.17,0.18,0.18,0.18]},
+    },description:"Early stage. ~45-62% chance equity → $0.",color:"#F59E0B",hasEquity:true,
+    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.12},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
+  },
+  "Startup: Series C-D": {
+    cashComp:[155,168,182,200,220,245,275,310,350,395],equityGrant:[55,48,42,38,38,42,48,55,65,78],
+    stayProb:[0.90,0.82,0.75,0.68,0.60,0.53,0.47,0.42,0.37,0.33],exitComp:[190,212,238,265,292,318,345,372,398,425],
+    scenarios:{
+      bear:{label:"Bear (down round)",mult:[0.5,0.4,0.3,0.2,0.15,0.1,0.1,0.05,0.05,0.05],prob:[0.30,0.30,0.32,0.33,0.35,0.37,0.40,0.42,0.45,0.47]},
+      base:{label:"Base (solid exit)",mult:[1.0,1.4,2.0,3.0,4.5,6.5,9.0,12.0,16.0,21.0],prob:[0.50,0.50,0.48,0.47,0.45,0.43,0.40,0.38,0.35,0.33]},
+      bull:{label:"Bull (category winner)",mult:[1.0,2.0,4.0,8.0,15.0,25.0,40.0,60.0,90.0,130.0],prob:[0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20]},
+    },description:"Late stage (Stripe/Databricks tier). Better cash, lower equity upside.",color:"#F97316",hasEquity:true,
+    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.05},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.90}},
+  },
+  "Found a Company": {
+    cashComp:[80,90,105,125,155,200,270,380,500,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    stayProb:[0.80,0.65,0.50,0.40,0.30,0.25,0.20,0.18,0.15,0.12],exitComp:[200,220,245,270,295,320,345,370,395,420],
+    scenarios:null,founderEquity:[0,0,0,0,600,1500,3500,7000,12000,22000],founderEqProb:[0,0,0,0,0.08,0.06,0.05,0.04,0.035,0.03],
+    description:"Founder path. Discrete liquidity events.",color:"#EF4444",hasEquity:false,isFounder:true,
+  },
+};
+
+// ── COMPUTATION ──
+function applyRole(path, roleKey) {
+  if (!path.roles?.[roleKey]) return path;
+  const r = path.roles[roleKey];
+  return { ...path, cashComp: path.cashComp.map(v => Math.round(v * r.cashAdj)), equityGrant: path.equityGrant.map(v => Math.round(v * r.eqAdj)) };
+}
+function computeSimpleEV(path, horizon) {
+  let cum=1,total=0;
+  for(let y=0;y<horizon;y++){const s=path.stayProb[y],rem=horizon-y;const eq=path.equityGrant[y]*path.equityMultiplier[y]*(1-path.equityZeroProb[y]);let f=0;if(path.founderEquity&&path.founderEqProb)f=cum*s*path.founderEquity[y]*path.founderEqProb[y];total+=cum*s*(path.cashComp[y]+eq)+cum*(1-s)*path.exitComp[y]*rem+f;cum*=s;}
+  return total;
+}
+function computeSimpleBreakdown(path, horizon) {
+  let cum=1,cC=0,cE=0;const data=[];
+  for(let y=0;y<horizon;y++){const s=path.stayProb[y],rem=horizon-y;const cash=cum*s*path.cashComp[y]+cum*(1-s)*path.exitComp[y]*rem;const eq=cum*s*path.equityGrant[y]*path.equityMultiplier[y]*(1-path.equityZeroProb[y]);let f=0;if(path.founderEquity&&path.founderEqProb)f=cum*s*path.founderEquity[y]*path.founderEqProb[y];cC+=cash;cE+=eq+f;data.push({year:`Y${y+1}`,cash:Math.round(cash),equity:Math.round(eq+f),cumCash:Math.round(cC),cumEquity:Math.round(cE),cumTotal:Math.round(cC+cE)});cum*=s;}
+  return data;
+}
+function computeDetailedEV(rawPath, horizon, role) {
+  const p=rawPath.roles?.[role]?applyRole(rawPath,role):rawPath;let cum=1,total=0,cashTotal=0,eqTotal=0;const yearly=[];
+  for(let y=0;y<horizon;y++){const s=p.stayProb[y],rem=horizon-y;const cashEV=cum*s*p.cashComp[y]+cum*(1-s)*p.exitComp[y]*rem;let eqEV=0;if(p.scenarios){for(const sc of Object.values(p.scenarios)){eqEV+=cum*s*p.equityGrant[y]*sc.mult[y]*sc.prob[y];}}let fEV=0;if(p.founderEquity&&p.founderEqProb)fEV=cum*s*p.founderEquity[y]*p.founderEqProb[y];cashTotal+=cashEV;eqTotal+=eqEV+fEV;total+=cashEV+eqEV+fEV;yearly.push({year:`Y${y+1}`,cash:Math.round(cashEV),equity:Math.round(eqEV+fEV),cumCash:Math.round(cashTotal),cumEquity:Math.round(eqTotal),cumTotal:Math.round(total)});cum*=s;}
+  return {total,cashTotal,eqTotal,yearly};
+}
+function fmtK(v){return Math.abs(v)>=1000?`$${(v/1000).toFixed(1)}M`:`$${Math.round(v)}K`;}
+
+// ── UI ──
+const TT=({active,payload,label})=>{if(!active||!payload?.length)return null;return(<div style={{background:"rgba(10,10,16,0.97)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:8,padding:"10px 14px",fontSize:12,fontFamily:"'DM Sans', sans-serif"}}><div style={{color:"#666",marginBottom:4,fontWeight:600,fontSize:11}}>{label}</div>{payload.map((p,i)=>(<div key={i} style={{display:"flex",gap:12,justifyContent:"space-between",padding:"1px 0"}}><span style={{color:"#aaa"}}>{p.name}</span><span style={{fontWeight:700,fontFamily:"'Space Mono', monospace",fontSize:11,color:p.color||p.fill}}>{fmtK(p.value)}</span></div>))}</div>);};
+function Btn({active,onClick,label,mono}){return <button onClick={onClick} style={{padding:"7px 13px",fontSize:12,fontWeight:600,background:active?"rgba(255,255,255,0.09)":"rgba(255,255,255,0.02)",border:active?"1px solid rgba(255,255,255,0.18)":"1px solid rgba(255,255,255,0.05)",borderRadius:6,color:active?"#fff":"#666",cursor:"pointer",transition:"all 0.15s",fontFamily:mono?"'Space Mono', monospace":"'DM Sans', sans-serif"}}>{label}</button>;}
+function GridEditor({label,arr,scale=1,step=1,onChange}){return(<Fragment><div style={{color:"#888",textAlign:"right",paddingRight:8,whiteSpace:"nowrap",fontSize:10.5}}>{label}</div>{YEARS.map((_,i)=>(<input key={i} type="number" step={step} value={Math.round(arr[i]*scale*100)/100} onChange={e=>{const v=[...arr];v[i]=Number(e.target.value)/scale;onChange(v);}} style={{width:"100%",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:4,color:"#ccc",textAlign:"center",padding:"5px 2px",fontFamily:"'Space Mono', monospace",fontSize:11,outline:"none"}}/>))}</Fragment>);}
+
+function PathEditor({name,path,onChange,color,isDetailed}){
+  const[open,setOpen]=useState(false);const update=(key,val)=>onChange({...path,[key]:val});
+  const updateScenario=(sc,key,val)=>{const s=dc(path.scenarios);s[sc][key]=val;onChange({...path,scenarios:s});};
+  return(<div style={{background:"rgba(255,255,255,0.02)",border:`1px solid ${color}18`,borderLeft:`3px solid ${color}`,borderRadius:8,padding:"12px 16px",marginBottom:8}}>
+    <div onClick={()=>setOpen(!open)} style={{display:"flex",justifyContent:"space-between",alignItems:"center",cursor:"pointer"}}>
+      <div style={{display:"flex",alignItems:"center",gap:10}}><div style={{width:10,height:10,borderRadius:"50%",background:color,boxShadow:`0 0 8px ${color}40`}}/><span style={{fontWeight:600,fontSize:14,color:"#ddd"}}>{name}</span></div>
+      <span style={{color:"#555",fontSize:16,transform:open?"rotate(180deg)":"none",transition:"0.2s"}}>▾</span>
+    </div>
+    <div style={{color:"#666",fontSize:12,marginTop:4,marginLeft:20}}>{path.description}</div>
+    {open&&(<div style={{marginTop:14,overflowX:"auto"}}><div style={{display:"grid",gridTemplateColumns:"110px repeat(10, 1fr)",gap:"5px 5px",fontSize:11,alignItems:"center",minWidth:640}}>
+      <div style={{color:"#555",fontWeight:600,textAlign:"right",paddingRight:8}}>Year</div>
+      {YEARS.map(y=><div key={y} style={{color:"#666",textAlign:"center",fontFamily:"'Space Mono', monospace",fontWeight:700}}>{y}</div>)}
+      <GridEditor label="Cash ($K)" arr={path.cashComp} onChange={v=>update("cashComp",v)}/>
+      {!isDetailed&&path.hasEquity!==false&&path.equityGrant&&path.equityMultiplier&&<Fragment><GridEditor label="Eq. Grant ($K)" arr={path.equityGrant} onChange={v=>update("equityGrant",v)}/><GridEditor label="Eq. Mult." arr={path.equityMultiplier} step={0.1} onChange={v=>update("equityMultiplier",v)}/><GridEditor label="Eq.→$0 %" arr={path.equityZeroProb} scale={100} onChange={v=>update("equityZeroProb",v)}/></Fragment>}
+      {isDetailed&&path.scenarios&&<Fragment><GridEditor label="Eq. Grant ($K)" arr={path.equityGrant} onChange={v=>update("equityGrant",v)}/>
+        {Object.entries(path.scenarios).map(([k,sc])=>(<Fragment key={k}><GridEditor label={`${k.charAt(0).toUpperCase()+k.slice(1)} Mult.`} arr={sc.mult} step={0.1} onChange={v=>updateScenario(k,"mult",v)}/><GridEditor label={`${k.charAt(0).toUpperCase()+k.slice(1)} Prob %`} arr={sc.prob} scale={100} onChange={v=>updateScenario(k,"prob",v)}/></Fragment>))}</Fragment>}
+      <GridEditor label="Stay %" arr={path.stayProb} scale={100} onChange={v=>update("stayProb",v)}/>
+      <GridEditor label="Exit Role ($K/yr)" arr={path.exitComp} onChange={v=>update("exitComp",v)}/>
+      {path.isFounder&&<Fragment><GridEditor label="Liq. Event ($K)" arr={path.founderEquity} onChange={v=>update("founderEquity",v)}/><GridEditor label="Liq. Prob %" arr={path.founderEqProb} scale={100} onChange={v=>update("founderEqProb",v)}/></Fragment>}
+    </div></div>)}
+  </div>);
+}
+
+// ── MAIN ──
+function App(){
+  const initState = useRef(readHash());
+  const init = initState.current;
+  const[mode,setMode]=useState(init?.mode||"simple");
+  const[horizon,setHorizon]=useState(init?.horizon||10);
+  const[role,setRole]=useState(init?.role||"pm");
+  const[simplePaths,setSimplePaths]=useState(init?.simplePaths?dc(init.simplePaths):dc(SIMPLE_PRESETS.paths));
+  const[detailedPaths,setDetailedPaths]=useState(init?.detailedPaths?dc(init.detailedPaths):dc(DETAILED_PRESETS));
+  const[drill,setDrill]=useState(null);
+  const[copied,setCopied]=useState(false);
+
+  // Debounced hash write
+  useEffect(()=>{
+    const t=setTimeout(()=>writeHash({mode,horizon,role,simplePaths,detailedPaths}),500);
+    return()=>clearTimeout(t);
+  },[mode,horizon,role,simplePaths,detailedPaths]);
+
+  const resetAll=useCallback(()=>{setSimplePaths(dc(SIMPLE_PRESETS.paths));setDetailedPaths(dc(DETAILED_PRESETS));setDrill(null);},[]);
+  const handleShare=useCallback(()=>{
+    const url=window.location.href;
+    navigator.clipboard.writeText(url).then(()=>{setCopied(true);setTimeout(()=>setCopied(false),2500);});
+  },[]);
+
+  const simpleResults=useMemo(()=>{
+    return Object.entries(simplePaths).map(([name,raw])=>{const p=raw.roles?applyRole(raw,role):raw;const bd=computeSimpleBreakdown(p,horizon);const last=bd[bd.length-1];return{name,ev:computeSimpleEV(p,horizon),cashEV:last.cumCash,equityEV:last.cumEquity,color:raw.color,bd};}).sort((a,b)=>b.ev-a.ev);
+  },[simplePaths,role,horizon]);
+  const simpleCum=useMemo(()=>{
+    const all={};Object.entries(simplePaths).forEach(([n,raw])=>{all[n]=computeSimpleBreakdown(raw.roles?applyRole(raw,role):raw,horizon);});
+    return Array.from({length:horizon},(_,y)=>{const pt={year:`Y${y+1}`};Object.entries(all).forEach(([n,d])=>{pt[n]=d[y].cumTotal;});return pt;});
+  },[simplePaths,role,horizon]);
+  const detailedResults=useMemo(()=>{
+    return Object.entries(detailedPaths).map(([name,raw])=>{const res=computeDetailedEV(raw,horizon,role);return{name,ev:res.total,cashEV:Math.round(res.cashTotal),equityEV:Math.round(res.eqTotal),color:raw.color,yearly:res.yearly};}).sort((a,b)=>b.ev-a.ev);
+  },[detailedPaths,role,horizon]);
+  const detailedCum=useMemo(()=>{
+    const all={};Object.entries(detailedPaths).forEach(([n,raw])=>{all[n]=computeDetailedEV(raw,horizon,role).yearly;});
+    return Array.from({length:horizon},(_,y)=>{const pt={year:`Y${y+1}`};Object.entries(all).forEach(([n,d])=>{pt[n]=d[y].cumTotal;});return pt;});
+  },[detailedPaths,role,horizon]);
+
+  const results=mode==="simple"?simpleResults:detailedResults;
+  const cumData=mode==="simple"?simpleCum:detailedCum;
+  const maxEV=results[0];const pathColors={};results.forEach(r=>pathColors[r.name]=r.color);
+  const drillData=drill?results.find(r=>r.name===drill):null;
+  const cg=results.length<=4?results.length:4;
+
+  return(<div style={{fontFamily:"'DM Sans', sans-serif",background:"#08080d",color:"#e0e0e0",minHeight:"100vh",padding:"28px 20px"}}>
+    <div style={{maxWidth:1060,margin:"0 auto"}}>
+      {/* HEADER */}
+      <div style={{marginBottom:22}}>
+        <div style={{display:"flex",alignItems:"center",gap:8,marginBottom:6}}>
+          {["CAREER","EV","ANALYZER"].map((w,i)=><span key={w} style={{fontFamily:"'Space Mono', monospace",fontSize:12,color:i===1?(maxEV?.color||"#6366F1"):"#444",letterSpacing:3}}>{w}</span>)}
+        </div>
+        <h1 style={{fontSize:26,fontWeight:700,margin:0,color:"#f0f0f0"}}>What's your career actually worth?</h1>
+        <p style={{color:"#555",fontSize:13,marginTop:8,maxWidth:680,lineHeight:1.65}}>
+          Expected value weights each outcome by its probability. <strong style={{color:"#777"}}>Simple</strong> uses a single equity multiplier.
+          <strong style={{color:"#777"}}> Detailed</strong> adds bear/base/bull scenarios, splits consulting (MBB vs OW), tech (FAANG vs high-growth), and startups by stage.
+          Tweak any assumption — the URL updates automatically so you can share your exact config.
+        </p>
+      </div>
+
+      {/* CONTROLS */}
+      <div style={{display:"flex",gap:18,marginBottom:20,flexWrap:"wrap",alignItems:"flex-end"}}>
+        <div><label style={{display:"block",fontSize:10,color:"#555",marginBottom:6,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"}}>View</label><div style={{display:"flex",gap:4}}><Btn active={mode==="simple"} onClick={()=>{setMode("simple");setDrill(null);}} label="Simple"/><Btn active={mode==="detailed"} onClick={()=>{setMode("detailed");setDrill(null);}} label="Detailed"/></div></div>
+        <div><label style={{display:"block",fontSize:10,color:"#555",marginBottom:6,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"}}>Role Type</label><div style={{display:"flex",gap:4,flexWrap:"wrap"}}>{Object.entries(ROLE_LABELS).map(([k,l])=><Btn key={k} active={role===k} onClick={()=>setRole(k)} label={l}/>)}</div></div>
+        <div><label style={{display:"block",fontSize:10,color:"#555",marginBottom:6,fontWeight:700,letterSpacing:1.5,textTransform:"uppercase"}}>Horizon</label><div style={{display:"flex",gap:4}}>{[5,7,10].map(h=><Btn key={h} active={horizon===h} onClick={()=>setHorizon(h)} label={`${h}yr`} mono/>)}</div></div>
+        <div style={{marginLeft:"auto"}}>
+          <button onClick={handleShare} style={{padding:"8px 18px",fontSize:12,fontWeight:700,background:copied?"rgba(16,185,129,0.15)":"rgba(99,102,241,0.12)",border:copied?"1px solid rgba(16,185,129,0.3)":"1px solid rgba(99,102,241,0.25)",borderRadius:8,color:copied?"#34D399":"#818CF8",cursor:"pointer",transition:"0.2s",fontFamily:"'DM Sans', sans-serif"}}>
+            {copied?"Link copied!":"Share this config"}
+          </button>
+        </div>
+      </div>
+
+      {/* SCORECARDS */}
+      {[results.slice(0,cg),...(results.length>cg?[results.slice(cg)]:[])].map((row,ri)=>(
+        <div key={ri} style={{display:"grid",gridTemplateColumns:`repeat(${row.length}, 1fr)`,gap:8,marginBottom:8}}>
+          {row.map((r,idx)=>{const i=ri*cg+idx;return(
+            <div key={r.name} onClick={()=>setDrill(drill===r.name?null:r.name)} style={{background:i===0?`linear-gradient(135deg, ${r.color}12, ${r.color}06)`:"rgba(255,255,255,0.015)",border:drill===r.name?`1px solid ${r.color}60`:i===0?`1px solid ${r.color}30`:"1px solid rgba(255,255,255,0.04)",borderRadius:10,padding:"12px 14px",cursor:"pointer",transition:"0.2s",position:"relative"}}>
+              {i===0&&<div style={{position:"absolute",top:6,right:8,fontSize:8,fontWeight:700,color:r.color,letterSpacing:1.2,textTransform:"uppercase",fontFamily:"'Space Mono', monospace"}}>HIGHEST EV</div>}
+              <div style={{display:"flex",alignItems:"center",gap:6,marginBottom:5}}><div style={{width:8,height:8,borderRadius:"50%",background:r.color,flexShrink:0}}/><span style={{fontSize:10.5,color:"#999",fontWeight:600}}>{r.name}</span></div>
+              <div style={{fontFamily:"'Space Mono', monospace",fontSize:22,fontWeight:700,color:i===0?"#fff":"#bbb"}}>{fmtK(r.ev)}</div>
+              <div style={{display:"flex",gap:10,marginTop:5,fontSize:10}}>
+                <span><span style={{color:"#555"}}>Cash </span><span style={{color:"#8B9DC3",fontFamily:"'Space Mono', monospace",fontWeight:600}}>{fmtK(r.cashEV)}</span></span>
+                {r.equityEV>0&&<span><span style={{color:"#555"}}>Eq </span><span style={{color:"#C4A265",fontFamily:"'Space Mono', monospace",fontWeight:600}}>{fmtK(r.equityEV)}</span></span>}
+              </div>
+              <div style={{fontSize:9.5,color:"#444",marginTop:3}}>Click to drill down ↓</div>
+            </div>);})}
+        </div>))}
+      <div style={{height:12}}/>
+
+      {/* CHARTS */}
+      <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:14,marginBottom:20}}>
+        <div style={{background:"rgba(255,255,255,0.015)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:10,padding:"16px 12px 8px"}}>
+          <div style={{fontSize:11,color:"#666",fontWeight:700,marginBottom:12,letterSpacing:0.5}}>EV: CASH vs EQUITY</div>
+          <ResponsiveContainer width="100%" height={Math.max(200,results.length*36)}>
+            <BarChart data={results} layout="vertical" margin={{left:8,right:16}}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" horizontal={false}/><XAxis type="number" tickFormatter={fmtK} tick={{fill:"#444",fontSize:10,fontFamily:"'Space Mono', monospace"}} axisLine={false} tickLine={false}/><YAxis type="category" dataKey="name" width={160} tick={{fill:"#999",fontSize:10}} axisLine={false} tickLine={false}/><Tooltip content={<TT/>} cursor={{fill:"rgba(255,255,255,0.02)"}}/><Bar dataKey="cashEV" name="Cash EV" stackId="a" fill="#6B7DB3" barSize={17}/><Bar dataKey="equityEV" name="Equity EV" stackId="a" fill="#C4A265" radius={[0,4,4,0]} barSize={17}/></BarChart>
+          </ResponsiveContainer>
+        </div>
+        <div style={{background:"rgba(255,255,255,0.015)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:10,padding:"16px 12px 8px"}}>
+          <div style={{fontSize:11,color:"#666",fontWeight:700,marginBottom:12,letterSpacing:0.5}}>CUMULATIVE EV OVER TIME</div>
+          <ResponsiveContainer width="100%" height={Math.max(200,results.length*36)}>
+            <AreaChart data={cumData} margin={{left:8,right:16}}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)"/><XAxis dataKey="year" tick={{fill:"#444",fontSize:10,fontFamily:"'Space Mono', monospace"}} axisLine={false} tickLine={false}/><YAxis tickFormatter={fmtK} tick={{fill:"#444",fontSize:10,fontFamily:"'Space Mono', monospace"}} axisLine={false} tickLine={false}/><Tooltip content={<TT/>}/>
+            {Object.entries(pathColors).map(([n,c])=><Area key={n} type="monotone" dataKey={n} stroke={c} fill={c} fillOpacity={0.05} strokeWidth={2} dot={false}/>)}</AreaChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+
+      {/* DRILLDOWN */}
+      {drillData&&(<div style={{background:"rgba(255,255,255,0.015)",border:`1px solid ${drillData.color}30`,borderRadius:10,padding:"16px 14px 10px",marginBottom:20}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div style={{display:"flex",alignItems:"center",gap:8}}><div style={{width:10,height:10,borderRadius:"50%",background:drillData.color}}/><span style={{fontSize:13,fontWeight:700,color:"#ddd"}}>{drillData.name}</span><span style={{fontSize:11,color:"#555"}}>— Year-by-year cash vs equity EV</span></div>
+          <button onClick={()=>setDrill(null)} style={{fontSize:11,color:"#666",background:"rgba(255,255,255,0.05)",border:"1px solid rgba(255,255,255,0.08)",borderRadius:5,padding:"4px 10px",cursor:"pointer"}}>Close</button>
+        </div>
+        <ResponsiveContainer width="100%" height={185}>
+          <BarChart data={drillData.yearly||drillData.bd} margin={{left:8,right:16}}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)"/><XAxis dataKey="year" tick={{fill:"#444",fontSize:10,fontFamily:"'Space Mono', monospace"}} axisLine={false} tickLine={false}/><YAxis tickFormatter={fmtK} tick={{fill:"#444",fontSize:10,fontFamily:"'Space Mono', monospace"}} axisLine={false} tickLine={false}/><Tooltip content={<TT/>}/><Bar dataKey="cash" name="Cash EV" stackId="a" fill="#6B7DB3" barSize={26}/><Bar dataKey="equity" name="Equity EV" stackId="a" fill="#C4A265" radius={[4,4,0,0]} barSize={26}/></BarChart>
+        </ResponsiveContainer>
+        {mode==="detailed"&&detailedPaths[drillData.name]?.scenarios&&(
+          <div style={{display:"flex",gap:16,marginTop:8,fontSize:11,color:"#555",paddingLeft:4,flexWrap:"wrap"}}>
+            {Object.entries(detailedPaths[drillData.name].scenarios).map(([k,sc])=>(<span key={k}><span style={{color:k==="bear"?"#EF4444":k==="bull"?"#10B981":"#F59E0B"}}>{sc.label}</span>{" "}Y{horizon}: <strong style={{fontFamily:"'Space Mono', monospace",color:"#aaa"}}>{sc.mult[horizon-1]}× @ {Math.round(sc.prob[horizon-1]*100)}%</strong></span>))}
+          </div>)}
+      </div>)}
+
+      {/* ASSUMPTIONS */}
+      <div style={{background:"rgba(255,255,255,0.01)",border:"1px solid rgba(255,255,255,0.05)",borderRadius:10,padding:"16px 14px"}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:12}}>
+          <div><div style={{fontSize:11,color:"#666",fontWeight:700,letterSpacing:0.5}}>ASSUMPTIONS</div><div style={{fontSize:11,color:"#444",marginTop:2}}>{mode==="simple"?"Expand to tweak cash, equity, multipliers, survival rates, and exit role comp":"Expand to tweak cash, equity grants, bear/base/bull scenarios, and exit role comp"}</div></div>
+          <button onClick={resetAll} style={{fontSize:11,fontWeight:600,color:"#555",background:"rgba(255,255,255,0.04)",border:"1px solid rgba(255,255,255,0.07)",borderRadius:5,padding:"5px 12px",cursor:"pointer"}}>Reset defaults</button>
+        </div>
+        {mode==="simple"?Object.entries(simplePaths).map(([n,p])=><PathEditor key={n} name={n} path={p} color={p.color} onChange={np=>setSimplePaths(prev=>({...prev,[n]:np}))} isDetailed={false}/>):Object.entries(detailedPaths).map(([n,p])=><PathEditor key={n} name={n} path={p} color={p.color} onChange={np=>setDetailedPaths(prev=>({...prev,[n]:np}))} isDetailed={true}/>)}
+      </div>
+
+      {/* METHODOLOGY */}
+      <div style={{marginTop:18,padding:"12px 0",borderTop:"1px solid rgba(255,255,255,0.04)"}}>
+        <div style={{fontSize:11,color:"#3a3a3a",lineHeight:1.75,maxWidth:760}}>
+          <strong style={{color:"#555"}}>Exit Role Comp:</strong> When you leave a track, the model pays exit comp for all remaining years — because an EM who leaves MBB still earns $350K+/yr in corp strat.<br/><br/>
+          <strong style={{color:"#555"}}>Simple:</strong> EV = P(on track) × [cash + grant × mult × P(eq≠0)] + P(off track) × exit_comp × remaining_years.<br/>
+          <strong style={{color:"#555"}}>Detailed:</strong> Replaces single multiplier with bear/base/bull. EV = P(on track) × [cash + grant × Σ(scenario_mult × scenario_prob)] + P(off track) × exit_comp × remaining_years.<br/><br/>
+          <strong style={{color:"#555"}}>Benchmarks:</strong> MBB ~$260K Y1 TC. OW ~15-20% below. FAANG L5 PM ~$270-350K. High-growth tech $300-860K+. Startups by stage. Cash includes base + bonus.<br/>
+          <strong style={{color:"#555"}}>Not captured:</strong> Time value of money, taxes, cost of living, vesting schedules, non-financial value.
+        </div>
+      </div>
+    </div>
+  </div>);
+}
+
+ReactDOM.render(<App/>, document.getElementById('root'));
+</script>
+</body>
+</html>
