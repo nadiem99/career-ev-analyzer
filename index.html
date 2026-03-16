@@ -62,18 +62,18 @@ function readHash() {
 const SIMPLE_PRESETS = {
   paths: {
     "Consulting": {
-      cashComp:[240,275,340,420,530,660,820,1000,1250,1600],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+      cashComp:[245,280,345,430,505,650,815,1010,1275,1575],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
       stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[200,230,270,320,370,420,470,520,570,620],
       description:"Blended MBB/T2. Post-MBA track. All cash + profit share at senior levels.",color:"#6366F1",hasEquity:false,
     },
     "Big Tech (Generalist)": {
-      cashComp:[185,200,220,245,275,310,345,385,425,470],equityGrant:[95,120,155,195,240,285,335,385,440,500],equityMultiplier:[1.0,1.08,1.15,1.22,1.30,1.35,1.40,1.45,1.50,1.55],equityZeroProb:[0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.04,0.05],
+      cashComp:[190,205,225,250,280,315,350,390,430,475],equityGrant:[160,180,210,250,295,340,390,440,495,555],equityMultiplier:[1.0,1.08,1.15,1.22,1.30,1.35,1.40,1.45,1.50,1.55],equityZeroProb:[0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.04,0.05],
       stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],exitComp:[200,220,245,270,295,320,345,370,395,420],
       description:"Blends FAANG + high-growth tech. L5→L7+ track. Cash includes bonus.",color:"#10B981",hasEquity:true,
       roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
     },
     "High-Growth Startup": {
-      cashComp:[145,155,170,185,205,230,260,295,335,380],equityGrant:[65,55,50,45,45,50,55,65,75,85],equityMultiplier:[1.0,1.5,2.2,3.5,5.5,8.0,12.0,17.0,23.0,30.0],equityZeroProb:[0.35,0.35,0.36,0.38,0.40,0.43,0.46,0.49,0.52,0.55],
+      cashComp:[145,155,170,185,205,230,260,295,335,380],equityGrant:[65,55,50,45,45,50,55,65,75,85],equityMultiplier:[1.0,1.5,2.2,3.5,5.5,8.0,12.0,17.0,23.0,30.0],equityZeroProb:[0.45,0.43,0.41,0.39,0.38,0.37,0.36,0.35,0.35,0.35],
       stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],exitComp:[180,200,220,245,270,295,320,345,370,395],
       description:"Series B-C (Anthropic/Anduril/Scale tier). Lower cash, massive equity upside — or zero.",color:"#F59E0B",hasEquity:true,
       roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.10},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
@@ -89,17 +89,17 @@ const SIMPLE_PRESETS = {
 
 const DETAILED_PRESETS = {
   "MBB (McKinsey/BCG/Bain)": {
-    cashComp:[260,300,380,480,600,750,950,1200,1600,2200],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    cashComp:[275,310,380,475,540,720,920,1150,1500,1900],equityGrant:[0,0,0,0,0,0,0,0,0,0],
     stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[210,250,300,360,420,480,540,600,660,720],
-    scenarios:null,description:"Post-MBA Associate → EM → AP → Partner. ~$260K Y1 TC.",color:"#6366F1",hasEquity:false,
+    scenarios:null,description:"Post-MBA Associate → EM → AP → Partner. ~$275K Y1 TC.",color:"#6366F1",hasEquity:false,
   },
   "Oliver Wyman": {
-    cashComp:[210,245,310,390,490,600,740,920,1150,1500],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    cashComp:[215,250,310,385,470,580,710,870,1050,1250],equityGrant:[0,0,0,0,0,0,0,0,0,0],
     stayProb:[0.95,0.90,0.83,0.73,0.63,0.53,0.45,0.38,0.32,0.27],exitComp:[195,230,275,330,385,440,495,550,605,660],
     scenarios:null,description:"~15-20% below MBB per level. Consultant → Partner.",color:"#8B5CF6",hasEquity:false,
   },
   "FAANG (Meta/Google/Amazon)": {
-    cashComp:[180,195,215,240,270,305,340,380,420,465],equityGrant:[90,115,145,185,225,270,315,365,420,480],
+    cashComp:[185,200,220,245,275,310,345,385,425,470],equityGrant:[165,185,215,255,300,345,395,445,500,560],
     stayProb:[0.93,0.88,0.82,0.76,0.70,0.64,0.58,0.53,0.48,0.44],exitComp:[200,220,245,270,295,320,345,370,395,420],
     scenarios:{
       bear:{label:"Bear (flat/down)",mult:[0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.5,0.45,0.4],prob:[0.15,0.15,0.18,0.18,0.20,0.20,0.22,0.22,0.25,0.25]},
@@ -109,7 +109,7 @@ const DETAILED_PRESETS = {
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
   },
   "High-Growth Tech (Nvidia/OpenAI)": {
-    cashComp:[190,210,230,255,285,320,355,395,440,490],equityGrant:[110,140,175,215,260,310,365,425,490,560],
+    cashComp:[195,215,238,265,295,330,370,410,455,505],equityGrant:[155,185,225,275,330,390,455,525,600,680],
     stayProb:[0.92,0.85,0.78,0.72,0.65,0.58,0.52,0.47,0.42,0.38],exitComp:[210,235,260,290,320,350,380,410,440,470],
     scenarios:{
       bear:{label:"Bear (correction)",mult:[0.7,0.6,0.5,0.4,0.35,0.3,0.25,0.2,0.2,0.15],prob:[0.20,0.20,0.22,0.22,0.25,0.25,0.28,0.28,0.30,0.30]},
@@ -122,9 +122,9 @@ const DETAILED_PRESETS = {
     cashComp:[130,140,150,165,182,200,225,255,290,330],equityGrant:[70,55,45,40,38,40,45,50,58,68],
     stayProb:[0.85,0.75,0.65,0.56,0.48,0.40,0.34,0.29,0.25,0.21],exitComp:[175,195,220,248,275,300,325,350,375,400],
     scenarios:{
-      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.45,0.45,0.47,0.48,0.50,0.52,0.55,0.57,0.60,0.62]},
-      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,9.0,13.0,18.0,24.0,32.0],prob:[0.45,0.43,0.40,0.38,0.35,0.32,0.28,0.25,0.22,0.20]},
-      bull:{label:"Bull (breakout)",mult:[1.0,3.0,7.0,15.0,30.0,55.0,90.0,140.0,200.0,300.0],prob:[0.10,0.12,0.13,0.14,0.15,0.16,0.17,0.18,0.18,0.18]},
+      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.55,0.52,0.48,0.45,0.42,0.39,0.36,0.33,0.30,0.28]},
+      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,9.0,13.0,18.0,24.0,32.0],prob:[0.35,0.36,0.38,0.40,0.42,0.44,0.46,0.48,0.50,0.52]},
+      bull:{label:"Bull (breakout)",mult:[1.0,3.0,7.0,15.0,30.0,55.0,90.0,140.0,200.0,300.0],prob:[0.10,0.12,0.14,0.15,0.16,0.17,0.18,0.19,0.20,0.20]},
     },description:"Early stage. ~45-62% chance equity → $0.",color:"#F59E0B",hasEquity:true,
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.12},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
   },
@@ -132,8 +132,8 @@ const DETAILED_PRESETS = {
     cashComp:[155,168,182,200,220,245,275,310,350,395],equityGrant:[55,48,42,38,38,42,48,55,65,78],
     stayProb:[0.90,0.82,0.75,0.68,0.60,0.53,0.47,0.42,0.37,0.33],exitComp:[190,212,238,265,292,318,345,372,398,425],
     scenarios:{
-      bear:{label:"Bear (down round)",mult:[0.5,0.4,0.3,0.2,0.15,0.1,0.1,0.05,0.05,0.05],prob:[0.30,0.30,0.32,0.33,0.35,0.37,0.40,0.42,0.45,0.47]},
-      base:{label:"Base (solid exit)",mult:[1.0,1.4,2.0,3.0,4.5,6.5,9.0,12.0,16.0,21.0],prob:[0.50,0.50,0.48,0.47,0.45,0.43,0.40,0.38,0.35,0.33]},
+      bear:{label:"Bear (down round)",mult:[0.5,0.4,0.3,0.2,0.15,0.1,0.1,0.05,0.05,0.05],prob:[0.35,0.33,0.30,0.28,0.26,0.24,0.22,0.20,0.18,0.17]},
+      base:{label:"Base (solid exit)",mult:[1.0,1.4,2.0,3.0,4.5,6.5,9.0,12.0,16.0,21.0],prob:[0.45,0.47,0.48,0.50,0.52,0.53,0.55,0.57,0.58,0.60]},
       bull:{label:"Bull (category winner)",mult:[1.0,2.0,4.0,8.0,15.0,25.0,40.0,60.0,90.0,130.0],prob:[0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20]},
     },description:"Late stage (Stripe/Databricks tier). Better cash, lower equity upside.",color:"#F97316",hasEquity:true,
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.05},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.90}},
@@ -246,12 +246,10 @@ function App() {
   const [simplePaths, setSimplePaths] = useState(init?.simplePaths ? dc(init.simplePaths) : dc(SIMPLE_PRESETS.paths));
   const [detailedPaths, setDetailedPaths] = useState(init?.detailedPaths ? dc(init.detailedPaths) : dc(DETAILED_PRESETS));
   const [drill, setDrill] = useState(null);
-  const [copied, setCopied] = useState(false);
 
   useEffect(() => { const t = setTimeout(() => writeHash({ mode, horizon, role, simplePaths, detailedPaths }), 500); return () => clearTimeout(t); }, [mode, horizon, role, simplePaths, detailedPaths]);
 
   const resetAll = useCallback(() => { setSimplePaths(dc(SIMPLE_PRESETS.paths)); setDetailedPaths(dc(DETAILED_PRESETS)); setDrill(null); }, []);
-  const handleShare = useCallback(() => { navigator.clipboard.writeText(window.location.href).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2500); }); }, []);
 
   const simpleResults = useMemo(() => Object.entries(simplePaths).map(([name, raw]) => { const p = raw.roles ? applyRole(raw, role) : raw; const bd = computeSimpleBreakdown(p, horizon); const last = bd[bd.length - 1]; return { name, ev: computeSimpleEV(p, horizon), cashEV: last.cumCash, equityEV: last.cumEquity, color: raw.color, bd }; }).sort((a, b) => b.ev - a.ev), [simplePaths, role, horizon]);
   const simpleCum = useMemo(() => { const all = {}; Object.entries(simplePaths).forEach(([n, raw]) => { all[n] = computeSimpleBreakdown(raw.roles ? applyRole(raw, role) : raw, horizon); }); return Array.from({ length: horizon }, (_, y) => { const pt = { year: `Y${y + 1}` }; Object.entries(all).forEach(([n, d]) => { pt[n] = d[y].cumTotal; }); return pt; }); }, [simplePaths, role, horizon]);
@@ -269,14 +267,13 @@ function App() {
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>{["CAREER", "EV", "ANALYZER"].map((w, i) => <span key={w} style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: i === 1 ? (maxEV?.color || "#6366F1") : "#444", letterSpacing: 3 }}>{w}</span>)}</div>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, color: "#f0f0f0" }}>What's your career actually worth?</h1>
-        <p style={{ color: "#555", fontSize: 13, marginTop: 8, maxWidth: 680, lineHeight: 1.65 }}>Expected value weights each outcome by its probability. <strong style={{ color: "#777" }}>Simple</strong> uses a single equity multiplier. <strong style={{ color: "#777" }}>Detailed</strong> adds bear/base/bull scenarios, splits consulting (MBB vs OW), tech (FAANG vs high-growth), and startups by stage. Tweak any assumption — click <em>Share</em> to send your exact config.</p>
+        <p style={{ color: "#555", fontSize: 13, marginTop: 8, maxWidth: 680, lineHeight: 1.65 }}>Expected value weights each outcome by its probability. <strong style={{ color: "#777" }}>Simple</strong> uses a single equity multiplier. <strong style={{ color: "#777" }}>Detailed</strong> adds bear/base/bull scenarios, splits consulting (MBB vs OW), tech (FAANG vs high-growth), and startups by stage. Tweak any assumption below.</p>
       </div>
 
       <div style={{ display: "flex", gap: 18, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
         <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>View</label><div style={{ display: "flex", gap: 4 }}><Btn active={mode === "simple"} onClick={() => { setMode("simple"); setDrill(null); }} label="Simple" /><Btn active={mode === "detailed"} onClick={() => { setMode("detailed"); setDrill(null); }} label="Detailed" /></div></div>
         <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Role Type</label><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{Object.entries(ROLE_LABELS).map(([k, l]) => <Btn key={k} active={role === k} onClick={() => setRole(k)} label={l} />)}</div></div>
         <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Horizon</label><div style={{ display: "flex", gap: 4 }}>{[5, 7, 10].map(h => <Btn key={h} active={horizon === h} onClick={() => setHorizon(h)} label={`${h}yr`} mono />)}</div></div>
-        <div style={{ marginLeft: "auto" }}><button onClick={handleShare} style={{ padding: "8px 18px", fontSize: 12, fontWeight: 700, background: copied ? "rgba(16,185,129,0.15)" : "rgba(99,102,241,0.12)", border: copied ? "1px solid rgba(16,185,129,0.3)" : "1px solid rgba(99,102,241,0.25)", borderRadius: 8, color: copied ? "#34D399" : "#818CF8", cursor: "pointer", transition: "0.2s", fontFamily: "'DM Sans', sans-serif" }}>{copied ? "Link copied!" : "Share this config"}</button></div>
       </div>
 
       {[results.slice(0, cg), ...(results.length > cg ? [results.slice(cg)] : [])].map((row, ri) => (
