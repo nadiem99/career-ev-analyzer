@@ -62,20 +62,20 @@ function readHash() {
 const SIMPLE_PRESETS = {
   paths: {
     "Consulting": {
-      cashComp:[245,280,345,430,505,650,815,1010,1275,1575],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+      cashComp:[246,259,290,328,392,443,491,602,740,920],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
       stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[200,230,270,320,370,420,470,520,570,620],
       description:"Blended MBB/T2. Post-MBA track. All cash + profit share at senior levels.",color:"#6366F1",hasEquity:false,
     },
     "Big Tech (Generalist)": {
-      cashComp:[190,205,225,250,280,315,350,390,430,475],equityGrant:[160,180,210,250,295,340,390,440,495,555],equityMultiplier:[1.0,1.08,1.15,1.22,1.30,1.35,1.40,1.45,1.50,1.55],equityZeroProb:[0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.04,0.05],
-      stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],exitComp:[200,220,245,270,295,320,345,370,395,420],
+      cashComp:[240,255,275,290,305,320,340,360,378,395],equityGrant:[175,190,225,280,325,385,450,525,650,825],equityMultiplier:[1.0,1.05,1.08,1.10,1.12,1.14,1.16,1.18,1.20,1.22],equityZeroProb:[0.02,0.02,0.02,0.02,0.03,0.03,0.03,0.04,0.04,0.05],
+      stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],exitComp:[220,240,265,290,315,340,365,390,415,440],
       description:"Blends FAANG + high-growth tech. L5→L7+ track. Cash includes bonus.",color:"#10B981",hasEquity:true,
       roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
     },
     "High-Growth Startup": {
-      cashComp:[145,155,170,185,205,230,260,295,335,380],equityGrant:[65,55,50,45,45,50,55,65,75,85],equityMultiplier:[1.0,1.5,2.2,3.5,5.5,8.0,12.0,17.0,23.0,30.0],equityZeroProb:[0.45,0.43,0.41,0.39,0.38,0.37,0.36,0.35,0.35,0.35],
-      stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],exitComp:[180,200,220,245,270,295,320,345,370,395],
-      description:"Series B-C (Anthropic/Anduril/Scale tier). Lower cash, massive equity upside — or zero.",color:"#F59E0B",hasEquity:true,
+      cashComp:[200,215,235,255,275,300,325,350,375,400],equityGrant:[150,175,225,300,350,400,450,500,575,650],equityMultiplier:[1.0,1.2,1.5,1.8,2.2,2.6,3.0,3.5,4.0,4.5],equityZeroProb:[0.08,0.08,0.08,0.09,0.09,0.10,0.10,0.10,0.12,0.12],
+      stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],exitComp:[220,240,265,290,315,340,365,390,415,440],
+      description:"Series B-C (Anthropic/Anduril/Scale tier). Competitive cash, large equity upside.",color:"#F59E0B",hasEquity:true,
       roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.10},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
     },
     "Found a Company": {
@@ -89,18 +89,18 @@ const SIMPLE_PRESETS = {
 
 const DETAILED_PRESETS = {
   "MBB (McKinsey/BCG/Bain)": {
-    cashComp:[275,310,380,475,540,720,920,1150,1500,1900],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    cashComp:[267,280,310,350,420,475,525,650,800,1000],equityGrant:[0,0,0,0,0,0,0,0,0,0],
     stayProb:[0.95,0.90,0.82,0.72,0.62,0.52,0.44,0.37,0.31,0.26],exitComp:[210,250,300,360,420,480,540,600,660,720],
-    scenarios:null,description:"Post-MBA Associate → EM → AP → Partner. ~$275K Y1 TC.",color:"#6366F1",hasEquity:false,
+    scenarios:null,description:"Post-MBA Associate → EM → AP → Partner. ~$267K Y1 TC.",color:"#6366F1",hasEquity:false,
   },
   "Oliver Wyman": {
-    cashComp:[215,250,310,385,470,580,710,870,1050,1250],equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    cashComp:[215,228,260,295,350,395,440,530,650,800],equityGrant:[0,0,0,0,0,0,0,0,0,0],
     stayProb:[0.95,0.90,0.83,0.73,0.63,0.53,0.45,0.38,0.32,0.27],exitComp:[195,230,275,330,385,440,495,550,605,660],
     scenarios:null,description:"~15-20% below MBB per level. Consultant → Partner.",color:"#8B5CF6",hasEquity:false,
   },
   "FAANG (Meta/Google/Amazon)": {
-    cashComp:[185,200,220,245,275,310,345,385,425,470],equityGrant:[165,185,215,255,300,345,395,445,500,560],
-    stayProb:[0.93,0.88,0.82,0.76,0.70,0.64,0.58,0.53,0.48,0.44],exitComp:[200,220,245,270,295,320,345,370,395,420],
+    cashComp:[240,250,265,280,290,305,320,340,355,370],equityGrant:[150,160,180,215,250,300,350,400,500,650],
+    stayProb:[0.93,0.88,0.82,0.76,0.70,0.64,0.58,0.53,0.48,0.44],exitComp:[220,240,265,290,315,340,365,390,415,440],
     scenarios:{
       bear:{label:"Bear (flat/down)",mult:[0.8,0.75,0.7,0.65,0.6,0.55,0.5,0.5,0.45,0.4],prob:[0.15,0.15,0.18,0.18,0.20,0.20,0.22,0.22,0.25,0.25]},
       base:{label:"Base (steady growth)",mult:[1.0,1.08,1.15,1.22,1.30,1.38,1.45,1.52,1.60,1.68],prob:[0.70,0.70,0.67,0.65,0.62,0.60,0.58,0.56,0.53,0.50]},
@@ -109,8 +109,8 @@ const DETAILED_PRESETS = {
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
   },
   "High-Growth Tech (Nvidia/OpenAI)": {
-    cashComp:[195,215,238,265,295,330,370,410,455,505],equityGrant:[155,185,225,275,330,390,455,525,600,680],
-    stayProb:[0.92,0.85,0.78,0.72,0.65,0.58,0.52,0.47,0.42,0.38],exitComp:[210,235,260,290,320,350,380,410,440,470],
+    cashComp:[250,265,285,300,320,340,360,380,400,420],equityGrant:[200,225,275,350,400,475,550,650,800,1000],
+    stayProb:[0.92,0.85,0.78,0.72,0.65,0.58,0.52,0.47,0.42,0.38],exitComp:[230,255,280,310,340,370,400,430,460,490],
     scenarios:{
       bear:{label:"Bear (correction)",mult:[0.7,0.6,0.5,0.4,0.35,0.3,0.25,0.2,0.2,0.15],prob:[0.20,0.20,0.22,0.22,0.25,0.25,0.28,0.28,0.30,0.30]},
       base:{label:"Base (strong growth)",mult:[1.0,1.3,1.7,2.2,3.0,4.0,5.2,6.5,8.0,10.0],prob:[0.55,0.55,0.53,0.50,0.47,0.45,0.42,0.40,0.38,0.35]},
@@ -119,23 +119,23 @@ const DETAILED_PRESETS = {
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.90,eqAdj:0.82},stratops:{cashAdj:0.93,eqAdj:0.90},bizops:{cashAdj:0.88,eqAdj:0.85}},
   },
   "Startup: Series A-B": {
-    cashComp:[130,140,150,165,182,200,225,255,290,330],equityGrant:[70,55,45,40,38,40,45,50,58,68],
+    cashComp:[160,170,180,195,210,230,250,270,290,310],equityGrant:[50,60,75,100,125,150,175,200,250,300],
     stayProb:[0.85,0.75,0.65,0.56,0.48,0.40,0.34,0.29,0.25,0.21],exitComp:[175,195,220,248,275,300,325,350,375,400],
     scenarios:{
-      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.55,0.52,0.48,0.45,0.42,0.39,0.36,0.33,0.30,0.28]},
-      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,9.0,13.0,18.0,24.0,32.0],prob:[0.35,0.36,0.38,0.40,0.42,0.44,0.46,0.48,0.50,0.52]},
+      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.60,0.57,0.54,0.51,0.48,0.45,0.42,0.39,0.36,0.34]},
+      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,9.0,13.0,18.0,24.0,32.0],prob:[0.30,0.31,0.32,0.34,0.36,0.38,0.40,0.42,0.44,0.46]},
       bull:{label:"Bull (breakout)",mult:[1.0,3.0,7.0,15.0,30.0,55.0,90.0,140.0,200.0,300.0],prob:[0.10,0.12,0.14,0.15,0.16,0.17,0.18,0.19,0.20,0.20]},
-    },description:"Early stage. ~45-62% chance equity → $0.",color:"#F59E0B",hasEquity:true,
+    },description:"Early stage. ~60% chance equity → $0.",color:"#F59E0B",hasEquity:true,
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.12},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
   },
   "Startup: Series C-D": {
-    cashComp:[155,168,182,200,220,245,275,310,350,395],equityGrant:[55,48,42,38,38,42,48,55,65,78],
-    stayProb:[0.90,0.82,0.75,0.68,0.60,0.53,0.47,0.42,0.37,0.33],exitComp:[190,212,238,265,292,318,345,372,398,425],
+    cashComp:[195,210,230,250,275,300,325,350,375,400],equityGrant:[125,150,200,275,325,375,425,475,550,650],
+    stayProb:[0.90,0.82,0.75,0.68,0.60,0.53,0.47,0.42,0.37,0.33],exitComp:[210,235,260,290,315,340,365,390,415,440],
     scenarios:{
-      bear:{label:"Bear (down round)",mult:[0.5,0.4,0.3,0.2,0.15,0.1,0.1,0.05,0.05,0.05],prob:[0.35,0.33,0.30,0.28,0.26,0.24,0.22,0.20,0.18,0.17]},
-      base:{label:"Base (solid exit)",mult:[1.0,1.4,2.0,3.0,4.5,6.5,9.0,12.0,16.0,21.0],prob:[0.45,0.47,0.48,0.50,0.52,0.53,0.55,0.57,0.58,0.60]},
-      bull:{label:"Bull (category winner)",mult:[1.0,2.0,4.0,8.0,15.0,25.0,40.0,60.0,90.0,130.0],prob:[0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20]},
-    },description:"Late stage (Stripe/Databricks tier). Better cash, lower equity upside.",color:"#F97316",hasEquity:true,
+      bear:{label:"Bear (down round)",mult:[0.5,0.4,0.3,0.2,0.15,0.1,0.1,0.05,0.05,0.05],prob:[0.20,0.18,0.16,0.15,0.14,0.13,0.12,0.11,0.10,0.10]},
+      base:{label:"Base (solid exit)",mult:[1.0,1.4,2.0,3.0,4.5,6.5,9.0,12.0,16.0,21.0],prob:[0.55,0.57,0.59,0.60,0.61,0.62,0.63,0.64,0.65,0.65]},
+      bull:{label:"Bull (category winner)",mult:[1.0,2.0,4.0,8.0,15.0,25.0,40.0,60.0,90.0,130.0],prob:[0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25,0.25]},
+    },description:"Late stage (Stripe/Databricks tier). Strong cash, meaningful equity upside.",color:"#F97316",hasEquity:true,
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.05},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.90}},
   },
   "Found a Company": {
@@ -152,14 +152,17 @@ function applyRole(path, roleKey) {
   const r = path.roles[roleKey];
   return { ...path, cashComp: path.cashComp.map(v => Math.round(v * r.cashAdj)), equityGrant: path.equityGrant.map(v => Math.round(v * r.eqAdj)) };
 }
+function exitRemSum(exitComp, fromY, horizon) {
+  let s = 0; for (let t = fromY; t < horizon; t++) s += exitComp[t]; return s;
+}
 function computeSimpleEV(path, horizon) {
   let total = 0;
   for (let y = 0; y < horizon; y++) {
-    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1], rem = horizon - y;
+    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1];
     const eq = path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
     if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
-    total += s * (path.cashComp[y] + eq) + (prevS - s) * path.exitComp[y] * rem + f;
+    total += s * (path.cashComp[y] + eq) + (prevS - s) * exitRemSum(path.exitComp, y, horizon) + f;
   }
   return total;
 }
@@ -167,8 +170,8 @@ function computeSimpleBreakdown(path, horizon) {
   let cC = 0, cE = 0;
   const data = [];
   for (let y = 0; y < horizon; y++) {
-    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1], rem = horizon - y;
-    const cash = s * path.cashComp[y] + (prevS - s) * path.exitComp[y] * rem;
+    const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1];
+    const cash = s * path.cashComp[y] + (prevS - s) * exitRemSum(path.exitComp, y, horizon);
     const eq = s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
     if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
@@ -182,8 +185,8 @@ function computeDetailedEV(rawPath, horizon, role) {
   let total = 0, cashTotal = 0, eqTotal = 0;
   const yearly = [];
   for (let y = 0; y < horizon; y++) {
-    const s = p.stayProb[y], prevS = y === 0 ? 1 : p.stayProb[y - 1], rem = horizon - y;
-    const cashEV = s * p.cashComp[y] + (prevS - s) * p.exitComp[y] * rem;
+    const s = p.stayProb[y], prevS = y === 0 ? 1 : p.stayProb[y - 1];
+    const cashEV = s * p.cashComp[y] + (prevS - s) * exitRemSum(p.exitComp, y, horizon);
     let eqEV = 0;
     if (p.scenarios) { for (const sc of Object.values(p.scenarios)) { eqEV += s * p.equityGrant[y] * sc.mult[y] * sc.prob[y]; } }
     let fEV = 0;
@@ -313,7 +316,7 @@ function App() {
           <strong style={{ color: "#555" }}>Exit Role Comp:</strong> When you leave a track, the model pays exit comp for all remaining years — because an EM who leaves MBB still earns $350K+/yr in corp strat.<br /><br />
           <strong style={{ color: "#555" }}>Simple:</strong> EV = P(on track) × [cash + grant × mult × P(eq&#8800;0)] + P(off track) × exit_comp × remaining_years.<br />
           <strong style={{ color: "#555" }}>Detailed:</strong> Replaces single multiplier with bear/base/bull. EV = P(on track) × [cash + grant × &#931;(scenario_mult × scenario_prob)] + P(off track) × exit_comp × remaining_years.<br /><br />
-          <strong style={{ color: "#555" }}>Benchmarks:</strong> MBB ~$260K Y1 TC. OW ~15-20% below. FAANG L5 PM ~$270-350K. High-growth tech $300-860K+. Startups by stage. Cash includes base + bonus.<br />
+          <strong style={{ color: "#555" }}>Benchmarks:</strong> MBB ~$267K Y1 TC. OW ~$215K Y1. FAANG L5 PM ~$390K TC ($240K cash + $150K RSU). High-growth tech (Nvidia/OpenAI) ~$450K+ TC. Startups by stage. Cash = base + bonus.<br />
           <strong style={{ color: "#555" }}>Not captured:</strong> Time value of money, taxes, cost of living, vesting schedules, non-financial value.
         </div>
       </div>
