@@ -20,7 +20,7 @@ In simple mode, equity is valued using a single expected multiplier and a probab
 ```
 EV = sum over t in [1..T] of:
     stayProb(t) * [ cashComp(t) + equityGrant(t) * multiplier(t) * (1 - zeroProb) ]
-  + [ stayProb(t-1) - stayProb(t) ] * sum over k in [t..T] of exitComp(k)
+  + [ stayProb(t-1) - stayProb(t) ] * exitOptionNPV(t)
 ```
 
 Where:
@@ -32,9 +32,22 @@ Where:
 | `equityGrant(t)` | Face value of equity granted in year `t` |
 | `multiplier(t)` | Expected value multiplier on equity at year `t` |
 | `zeroProb` | Probability that equity goes to zero (startup failure, etc.) |
-| `exitComp(k)` | Compensation earned in the fallback role for year `k` |
+| `exitOptionNPV(t)` | Net present value of the outside option if departing at year `t` |
 
-The exit-compensation term captures the value of "leaving the path": the cohort that departs in year `t` (the delta in `stayProb`) earns the exit compensation array for all remaining years. Critically, exit comp values grow over time rather than staying flat, reflecting career progression in the fallback role.
+### Exit Compensation: NPV Model
+
+When someone leaves a path in year `t`, their outside option is valued as the **net present value** of earning their exit compensation for all remaining years, discounted at **5% per year**:
+
+```
+exitOptionNPV(t) = sum over k in [t..T] of:
+    exitComp(t) / (1 + 0.05)^(k - t)
+```
+
+The frontend displays `exitComp` as a simple annual figure ("what you'd earn per year if you left"), making it easy to understand and adjust. The NPV calculation happens behind the scenes. This approach:
+
+1. **Uses the exit comp at the departure year** as the annual rate (not future exit comp values), since leaving in year 3 means your market value is calibrated to year 3
+2. **Discounts future years at 5%** to reflect that a dollar earned in year 10 is worth less than one earned today
+3. **Prevents exit comp from dominating the EV** on high-attrition paths (e.g., founding), where the old undiscounted sum created unrealistically large exit contributions
 
 ### Detailed (Scenario) Mode
 
@@ -45,7 +58,7 @@ equityEV(t) = sum over s in {bear, base, bull} of:
     prob(s) * equityGrant(t) * multiplier(s, t)
 ```
 
-This is then substituted into the main EV formula in place of the simple `equityGrant * multiplier * (1 - zeroProb)` term. Each scenario's multiplier changes year by year to reflect a distinct market trajectory (e.g., bear case declining, bull case compounding).
+This is then substituted into the main EV formula in place of the simple `equityGrant * multiplier * (1 - zeroProb)` term. The exit comp NPV model (5% discount rate) is used identically in both modes. Each scenario's multiplier changes year by year to reflect a distinct market trajectory (e.g., bear case declining, bull case compounding).
 
 ### Role Adjustments
 
@@ -152,7 +165,7 @@ The exit-compensation mechanism ensures that attrition is not purely value-destr
 | **Exit compensation grows over time** | People who leave one path (e.g., a startup) typically take roles with increasing pay as they gain seniority. The model reflects this with a growing exit comp array. |
 | **Scenarios are independent of retention** | The model does not correlate equity outcomes with attrition (e.g., a bear market causing more people to leave). In reality, these are correlated. |
 | **No taxes are modeled** | All values are pre-tax. Effective tax rates vary significantly by jurisdiction, equity type (ISO vs. NSO vs. RSU), and holding period. |
-| **No time-value discounting** | Future dollars are not discounted to present value. A dollar in year 10 is counted the same as a dollar in year 1. Users should mentally apply their own discount rate. |
+| **Partial discounting only** | Exit comp is discounted at 5%/yr when computing the outside option NPV, but primary-path earnings (cash and equity) are not discounted. Users should mentally apply their own discount rate to primary-path earnings. |
 | **Role adjustments are static** | The model applies fixed role-adjustment multipliers rather than modeling promotions or role changes dynamically. |
 
 ### Limitations
