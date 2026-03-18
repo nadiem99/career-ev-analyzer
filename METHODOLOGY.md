@@ -143,15 +143,56 @@ Each company tier has three scenario trajectories calibrated against historical 
 
 The `stayProb` curve models the probability that someone remains on a given career path at each year. It declines over time, reflecting voluntary attrition, layoffs, burnout, and career pivots.
 
-### How stayProb Was Determined
+### 4.1 Management Consulting (MBB)
 
-Retention curves are calibrated from a combination of:
+MBB firms operate an "up or out" system with ~18-25% annual attrition. Median post-MBA tenure is approximately 2.5 years. Only ~1-2% of a post-MBA cohort eventually makes Partner.
 
-1. **Industry tenure data**: Median tenure at large tech companies is 2-4 years; at startups it is shorter. Consulting firms have well-documented "up or out" attrition patterns.
-2. **Path-specific logic**: A founder's "retention" reflects the probability the startup is still alive and the founder is still leading it. A consultant's retention reflects promotion-or-exit dynamics.
-3. **Compounding attrition**: `stayProb` is modeled as a monotonically decreasing function. If annual attrition is ~15%, then `stayProb` at year 5 is approximately `0.85^5 = 0.44`.
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.85 | ~15% leave Y1 (voluntary + early managed exits) |
+| 2 | 0.65 | First major "up or out" cycle; median tenure ~2.5yr means <50% remain by mid-Y3 |
+| 3 | 0.48 | Second exit wave post-EM promotion decisions |
+| 4 | 0.35 | Only partner-track candidates remain |
+| 5 | 0.25 | AP-level thinning |
+| 10 | 0.06 | Approaching partner; <5-10% of original cohort |
 
-The exit-compensation mechanism ensures that attrition is not purely value-destroying: people who leave a path continue earning in their fallback role, and that fallback compensation grows over time.
+**Sources:** CaseCoach (up-or-out policy analysis), Strat-Bridge (McKinsey partner promotion data), industry tenure surveys.
+
+Oliver Wyman retention is slightly higher (less aggressive poaching, slightly less rigid up-or-out): Y1=0.87, Y5=0.28, Y10=0.07.
+
+### 4.2 Startup Founders
+
+Founder retention combines two failure modes: (a) the company fails entirely, and (b) the founder is replaced even if the company survives.
+
+- **Company survival:** BLS data shows ~52% of businesses survive to year 5 and ~35% to year 10. VC-backed startups fail at higher rates — 75% never return cash to investors (Harvard Business School).
+- **Founder replacement:** 20-40% of founders are replaced by investors over the company's life. Among unicorns, ~35% of founders are no longer CEO (Harvard Law School/HBR research).
+
+Combined probability (founder still running their startup):
+
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.75 | ~20-25% company failure + early founder departures |
+| 2 | 0.55 | ~35% cumulative company failure; founder replacement begins |
+| 3 | 0.40 | ~40% companies gone; founder replacement accelerating |
+| 5 | 0.25 | ~50% companies dead; ~20% of surviving founders replaced |
+| 10 | 0.08 | ~65% companies dead; ~30% of surviving founders replaced |
+
+**Sources:** BLS Establishment Age and Survival Data, CB Insights Venture Capital Funnel, Harvard Business School (VC failure rates), HBR/Harvard Law (founder replacement research).
+
+### 4.3 Tech and Startups (Employee)
+
+| Path | Y1 | Y5 | Y10 | Basis |
+|------|-----|-----|------|-------|
+| FAANG | 0.93 | 0.70 | 0.44 | Median tenure 2-4yr; lower attrition than startups |
+| High-Growth Tech | 0.92 | 0.65 | 0.38 | Slightly higher attrition than FAANG |
+| Series A-B | 0.85 | 0.48 | 0.21 | Higher company failure + startup attrition |
+| Series C-D | 0.90 | 0.60 | 0.33 | More stable than early-stage; pre-IPO retention incentives |
+
+### 4.4 Scenario Probability Normalization
+
+In detailed mode, bear/base/bull scenario probabilities are **auto-normalized to sum to 100%** at each year. When a user edits one scenario's probability, the other two are proportionally scaled so the total remains 1.0. This ensures the EV calculation is always mathematically valid.
+
+The exit-compensation mechanism ensures that attrition is not purely value-destroying: people who leave a path continue earning in their fallback role, valued as an NPV of the outside option (see Section 1).
 
 ---
 
