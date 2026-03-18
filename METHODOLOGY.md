@@ -64,9 +64,18 @@ This is then substituted into the main EV formula in place of the simple `equity
 
 Cash and equity values are multiplied by **role-specific adjustment factors** to model differences between roles at the same company tier (e.g., a PM vs. an engineer at a FAANG company, or a senior associate vs. a partner-track consultant).
 
-### Founder Path
+### Carry / Liquidity Event Model (Founders, PE, VC)
 
-The founder path does not use annual equity grants. Instead, it models **discrete liquidity events** (e.g., seed raise, Series A, exit) with associated valuations and probabilities, reflecting the lumpy and illiquid nature of founder equity.
+Some paths do not use annual equity grants. Instead, they model **discrete payout events** with associated values and probabilities per year:
+
+```
+carryEV(t) = stayProb(t) * payoutValue(t) * payoutProb(t)
+```
+
+This mechanism is used for:
+- **Founders**: Discrete liquidity events (seed raise, Series A, exit) reflecting the lumpy, illiquid nature of founder equity
+- **Private Equity**: Carried interest payouts beginning ~Y5 as fund exits materialize. PE carry is more predictable than founder equity (established firms have fund track records), so payout probabilities are higher (40-60%)
+- **Venture Capital**: Carry payouts beginning ~Y7 due to longer fund cycles (10-year funds). VC carry is more volatile (power-law returns) — lower probabilities but higher potential payouts in later years
 
 ---
 
@@ -91,6 +100,22 @@ All compensation figures are benchmarked against the following public sources:
 | CaseLane McKinsey Salary 2025 | McKinsey-specific salary bands | McKinsey cash comp by level |
 | Poets&Quants Consulting Pay 2025 | Cross-firm consulting compensation | Benchmarking non-McKinsey consulting paths |
 | Oliver Wyman on Levels.fyi | Oliver Wyman salary data | Tier-2 consulting calibration |
+
+### Finance Compensation (IB, PE, VC)
+
+| Source | Coverage | Used For |
+|---|---|---|
+| Wall Street Oasis Compensation Reports | IB analyst/associate/VP/MD comp | Investment banking cash + bonus benchmarks |
+| Heidrick & Struggles PE/VC Compensation Survey | PE and VC comp across fund sizes | PE base + bonus, VC base + bonus calibration |
+| Preqin / PitchBook Fund Performance Data | PE/VC fund return distributions | Calibrating carry payout probabilities and timing |
+| Levels.fyi Finance | Corporate finance, FP&A, corp dev comp | Corp strategy/finance path calibration |
+
+### Corporate Strategy / Finance
+
+| Source | Coverage | Used For |
+|---|---|---|
+| Levels.fyi (F500 companies) | Strategy, FP&A, corp dev roles at large public companies | Cash comp and RSU grant benchmarks |
+| Glassdoor / Blind salary data | Cross-company corporate role compensation | Supplementary comp verification |
 
 ---
 
@@ -158,9 +183,51 @@ MBB firms operate an "up or out" system with ~18-25% annual attrition. Median po
 
 **Sources:** CaseCoach (up-or-out policy analysis), Strat-Bridge (McKinsey partner promotion data), industry tenure surveys.
 
-Oliver Wyman retention is slightly higher (less aggressive poaching, slightly less rigid up-or-out): Y1=0.87, Y5=0.28, Y10=0.07.
+### 4.2 Investment Banking
 
-### 4.2 Startup Founders
+IB has extremely high attrition — most analysts and associates leave within 2-3 years for PE, hedge funds, or corporate roles. Only a small fraction reach MD level (~8% at Y10).
+
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.82 | ~18% leave Y1 (some pre-planned 2yr stints) |
+| 2 | 0.55 | Massive exit wave — most 2yr analyst-to-PE moves happen here |
+| 3 | 0.35 | Associate level; second wave of departures |
+| 5 | 0.20 | Only VP-track lifers remain |
+| 10 | 0.08 | MD level; ~8% of original cohort |
+
+### 4.3 Private Equity
+
+PE has high junior attrition (2-year associate programs) but lower senior attrition (partners stay for carry).
+
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.90 | Associates generally stay through program |
+| 2 | 0.75 | End of associate program; many return to bschool or switch |
+| 5 | 0.42 | VP level; carry starts vesting |
+| 10 | 0.21 | Principal/Partner track; carry retention effect |
+
+### 4.4 Venture Capital
+
+VC is a small industry with moderate attrition. Associate/principal roles turn over, but partners tend to stay.
+
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.90 | Low initial attrition |
+| 2 | 0.78 | Some associates rotate out |
+| 5 | 0.50 | Principal level decisions |
+| 10 | 0.28 | Partners with carry stake |
+
+### 4.5 Corp Strategy / Finance
+
+F500 corporate roles have the highest retention — stable comp, predictable hours, low involuntary attrition.
+
+| Year | stayProb | Notes |
+|------|----------|-------|
+| 1 | 0.93 | Very low initial attrition |
+| 5 | 0.72 | Steady; some move to startups or MBA |
+| 10 | 0.50 | ~50% still in corp path after a decade |
+
+### 4.6 Startup Founders
 
 Founder retention combines two failure modes: (a) the company fails entirely, and (b) the founder is replaced even if the company survives.
 
@@ -179,7 +246,7 @@ Combined probability (founder still running their startup):
 
 **Sources:** BLS Establishment Age and Survival Data, CB Insights Venture Capital Funnel, Harvard Business School (VC failure rates), HBR/Harvard Law (founder replacement research).
 
-### 4.3 Tech and Startups (Employee)
+### 4.7 Tech and Startups (Employee)
 
 | Path | Y1 | Y5 | Y10 | Basis |
 |------|-----|-----|------|-------|
@@ -188,7 +255,7 @@ Combined probability (founder still running their startup):
 | Series A-B | 0.85 | 0.48 | 0.21 | Higher company failure + startup attrition |
 | Series C-D | 0.90 | 0.60 | 0.33 | More stable than early-stage; pre-IPO retention incentives |
 
-### 4.4 Scenario Probability Normalization
+### 4.8 Scenario Probability Normalization
 
 In detailed mode, bear/base/bull scenario probabilities are **auto-normalized to sum to 100%** at each year. When a user edits one scenario's probability, the other two are proportionally scaled so the total remains 1.0. This ensures the EV calculation is always mathematically valid.
 
