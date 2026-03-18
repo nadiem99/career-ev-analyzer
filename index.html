@@ -152,8 +152,11 @@ function applyRole(path, roleKey) {
   const r = path.roles[roleKey];
   return { ...path, cashComp: path.cashComp.map(v => Math.round(v * r.cashAdj)), equityGrant: path.equityGrant.map(v => Math.round(v * r.eqAdj)) };
 }
-function exitRemSum(exitComp, fromY, horizon) {
-  let s = 0; for (let t = fromY; t < horizon; t++) s += exitComp[t]; return s;
+const EXIT_DISCOUNT_RATE = 0.05;
+function exitOptionNPV(exitComp, departY, horizon) {
+  let npv = 0;
+  for (let t = departY; t < horizon; t++) npv += exitComp[departY] / Math.pow(1 + EXIT_DISCOUNT_RATE, t - departY);
+  return npv;
 }
 function computeSimpleEV(path, horizon) {
   let total = 0;
@@ -162,7 +165,7 @@ function computeSimpleEV(path, horizon) {
     const eq = path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
     if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
-    total += s * (path.cashComp[y] + eq) + (prevS - s) * exitRemSum(path.exitComp, y, horizon) + f;
+    total += s * (path.cashComp[y] + eq) + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon) + f;
   }
   return total;
 }
@@ -171,7 +174,7 @@ function computeSimpleBreakdown(path, horizon) {
   const data = [];
   for (let y = 0; y < horizon; y++) {
     const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1];
-    const cash = s * path.cashComp[y] + (prevS - s) * exitRemSum(path.exitComp, y, horizon);
+    const cash = s * path.cashComp[y] + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon);
     const eq = s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
     if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
@@ -186,7 +189,7 @@ function computeDetailedEV(rawPath, horizon, role) {
   const yearly = [];
   for (let y = 0; y < horizon; y++) {
     const s = p.stayProb[y], prevS = y === 0 ? 1 : p.stayProb[y - 1];
-    const cashEV = s * p.cashComp[y] + (prevS - s) * exitRemSum(p.exitComp, y, horizon);
+    const cashEV = s * p.cashComp[y] + (prevS - s) * exitOptionNPV(p.exitComp, y, horizon);
     let eqEV = 0;
     if (p.scenarios) { for (const sc of Object.values(p.scenarios)) { eqEV += s * p.equityGrant[y] * sc.mult[y] * sc.prob[y]; } }
     let fEV = 0;
@@ -313,11 +316,11 @@ function App() {
 
       <div style={{ marginTop: 18, padding: "12px 0", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
         <div style={{ fontSize: 11, color: "#3a3a3a", lineHeight: 1.75, maxWidth: 760 }}>
-          <strong style={{ color: "#555" }}>Exit Role Comp:</strong> When you leave a track, the model pays exit comp for all remaining years — because an EM who leaves MBB still earns $350K+/yr in corp strat.<br /><br />
-          <strong style={{ color: "#555" }}>Simple:</strong> EV = P(on track) × [cash + grant × mult × P(eq&#8800;0)] + P(off track) × exit_comp × remaining_years.<br />
-          <strong style={{ color: "#555" }}>Detailed:</strong> Replaces single multiplier with bear/base/bull. EV = P(on track) × [cash + grant × &#931;(scenario_mult × scenario_prob)] + P(off track) × exit_comp × remaining_years.<br /><br />
+          <strong style={{ color: "#555" }}>Exit Role Comp:</strong> Shows annual comp in your next-best role if you leave. The model discounts the full outside option at 5%/yr to compute NPV at departure — e.g., an EM leaving MBB earns $350K+/yr in corp strat, valued as a discounted annuity over remaining years.<br /><br />
+          <strong style={{ color: "#555" }}>Simple:</strong> EV = P(stay) × [cash + grant × mult × P(eq&#8800;0)] + P(leave) × NPV(exit comp, 5% discount).<br />
+          <strong style={{ color: "#555" }}>Detailed:</strong> Replaces single multiplier with bear/base/bull. EV = P(stay) × [cash + grant × &#931;(scenario_mult × scenario_prob)] + P(leave) × NPV(exit comp, 5% discount).<br /><br />
           <strong style={{ color: "#555" }}>Benchmarks:</strong> MBB ~$267K Y1 TC. OW ~$215K Y1. FAANG L5 PM ~$390K TC ($240K cash + $150K RSU). High-growth tech (Nvidia/OpenAI) ~$450K+ TC. Startups by stage. Cash = base + bonus.<br />
-          <strong style={{ color: "#555" }}>Not captured:</strong> Time value of money, taxes, cost of living, vesting schedules, non-financial value.
+          <strong style={{ color: "#555" }}>Not captured:</strong> Discounting on primary path earnings, taxes, cost of living, vesting schedules, non-financial value.
         </div>
       </div>
     </div>
