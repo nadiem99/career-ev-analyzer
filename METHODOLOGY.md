@@ -2,6 +2,8 @@
 
 This document describes the data sources, modeling approach, and key assumptions behind the Career EV (Expected Value) Analyzer. Every parameter is grounded in publicly available compensation data and historical market returns.
 
+> **Currently implemented in the dashboard:** Consulting, Big Tech (Generalist), High-Growth Startup, Corp Strategy / Finance, Found a Company. Investment Banking, Private Equity, and Venture Capital are documented below for reference and may be re-introduced later.
+
 ---
 
 ## 1. Model Overview
@@ -9,73 +11,64 @@ This document describes the data sources, modeling approach, and key assumptions
 The Career EV Analyzer computes the **expected monetary value** of a career path over a configurable time horizon (typically 10 years). It accounts for:
 
 - **Annual cash compensation** (base salary + bonus + signing bonuses amortized)
-- **Annual equity grants** valued under multiple market scenarios
+- **Annual equity grants** valued at an expected long-run multiplier
 - **Retention probability** (the likelihood the person is still on that path in a given year)
 - **Exit compensation** (what someone earns if they leave the path for a fallback role)
+- **Founder liquidity events** (discrete payouts modeling lumpy startup outcomes)
 
-### Simple Mode
+All dollars are discounted to present value at **5% per year**, applied uniformly across on-path cash, on-path equity, and exit fallback comp — so the comparison between staying and leaving is apples-to-apples.
 
-In simple mode, equity is valued using a single expected multiplier and a probability of total loss (`zeroProb`). The expected value for a path is:
+### Core formula
+
+For each year `y` in `[0, horizon-1]`:
 
 ```
-EV = sum over t in [1..T] of:
-    stayProb(t) * [ cashComp(t) + equityGrant(t) * multiplier(t) * (1 - zeroProb) ]
-  + [ stayProb(t-1) - stayProb(t) ] * exitOptionNPV(t)
+year_value(y) =
+      stay(y) * [ cash(y) + grant(y) * mult(y) * (1 - P_zero(y)) ]
+    + (stay(y-1) - stay(y)) * NPV_exit(y)
+    + stay(y) * founder_event(y)
+
+total_EV = sum over y of year_value(y) / (1.05)^y
 ```
 
 Where:
 
 | Symbol | Meaning |
 |---|---|
-| `stayProb(t)` | Probability the person is still on this path at year `t` |
-| `cashComp(t)` | Cash compensation (salary + bonus) in year `t` |
-| `equityGrant(t)` | Face value of equity granted in year `t` |
-| `multiplier(t)` | Expected value multiplier on equity at year `t` |
-| `zeroProb` | Probability that equity goes to zero (startup failure, etc.) |
-| `exitOptionNPV(t)` | Net present value of the outside option if departing at year `t` |
+| `stay(y)` | Probability the person is still on this path at year `y` (`stay(-1) = 1`) |
+| `cash(y)` | Cash compensation (salary + bonus) in year `y` |
+| `grant(y)` | Face value of equity granted in year `y` |
+| `mult(y)` | Expected long-run multiplier on a grant given in year `y` |
+| `P_zero(y)` | Probability the equity goes to zero (failure, severe drawdown) |
+| `NPV_exit(y)` | Present value (at year `y`) of earning the year-y exit comp every year through the horizon |
+| `founder_event(y)` | Year-y founder liquidity event: `value(y) * prob(y)` |
 
-### Exit Compensation: NPV Model
+### Exit compensation: NPV model
 
-When someone leaves a path in year `t`, their outside option is valued as the **net present value** of earning their exit compensation for all remaining years, discounted at **5% per year**:
-
-```
-exitOptionNPV(t) = sum over k in [t..T] of:
-    exitComp(t) / (1 + 0.05)^(k - t)
-```
-
-The frontend displays `exitComp` as a simple annual figure ("what you'd earn per year if you left"), making it easy to understand and adjust. The NPV calculation happens behind the scenes. This approach:
-
-1. **Uses the exit comp at the departure year** as the annual rate (not future exit comp values), since leaving in year 3 means your market value is calibrated to year 3
-2. **Discounts future years at 5%** to reflect that a dollar earned in year 10 is worth less than one earned today
-3. **Prevents exit comp from dominating the EV** on high-attrition paths (e.g., founding), where the old undiscounted sum created unrealistically large exit contributions
-
-### Detailed (Scenario) Mode
-
-In detailed mode, the single multiplier is replaced by three equity scenarios -- **bear**, **base**, and **bull** -- each with its own multiplier trajectory and probability weight:
+When someone leaves a path in year `y`, their outside option is valued as the **net present value at year y** of following the exit-compensation trajectory through the remaining horizon, discounted at 5% per year:
 
 ```
-equityEV(t) = sum over s in {bear, base, bull} of:
-    prob(s) * equityGrant(t) * multiplier(s, t)
+NPV_exit(y) = sum over k in [y..horizon-1] of:
+    exit_comp(k) / (1 + 0.05)^(k - y)
 ```
 
-This is then substituted into the main EV formula in place of the simple `equityGrant * multiplier * (1 - zeroProb)` term. The exit comp NPV model (5% discount rate) is used identically in both modes. Each scenario's multiplier changes year by year to reflect a distinct market trajectory (e.g., bear case declining, bull case compounding).
+This NPV is then itself discounted back to year 0 by the outer `/ (1.05)^y` factor, so the overall comparison between paths is in today's dollars.
 
-### Role Adjustments
+The `exit_comp` array is therefore a **year-by-year fallback trajectory**, not a single flat number: leave at Y3 and you start earning the year-3 exit comp; if you stay in fallback through Y10 you earn the year-10 exit comp. This reflects that ex-consultants, ex-Big-Tech etc. continue to advance in their fallback careers (corp dev associate → director → VP, for example).
 
-Cash and equity values are multiplied by **role-specific adjustment factors** to model differences between roles at the same company tier (e.g., a PM vs. an engineer at a FAANG company, or a senior associate vs. a partner-track consultant).
+### Role adjustments
 
-### Carry / Liquidity Event Model (Founders, PE, VC)
+Cash and equity values are multiplied by **role-specific adjustment factors** to model differences between roles at the same company tier (e.g., a PM vs. a Chief of Staff at a FAANG company). Adjustments are static — promotions and role transitions are not modeled.
 
-Some paths do not use annual equity grants. Instead, they model **discrete payout events** with associated values and probabilities per year:
+### Carry / liquidity event model (founders)
+
+The founder path does not use annual equity grants. Instead, it models **discrete payout events** with associated values and probabilities per year:
 
 ```
-carryEV(t) = stayProb(t) * payoutValue(t) * payoutProb(t)
+founder_event(y) = stay(y) * value(y) * prob(y)
 ```
 
-This mechanism is used for:
-- **Founders**: Discrete liquidity events (seed raise, Series A, exit) reflecting the lumpy, illiquid nature of founder equity
-- **Private Equity**: Carried interest payouts beginning ~Y5 as fund exits materialize. PE carry is more predictable than founder equity (established firms have fund track records), so payout probabilities are higher (40-60%)
-- **Venture Capital**: Carry payouts beginning ~Y7 due to longer fund cycles (10-year funds). VC carry is more volatile (power-law returns) — lower probabilities but higher potential payouts in later years
+Each year is treated as an independent shot at a liquidity event (seed raise, Series A, growth round, exit). The per-year EVs sum to the total expected founder-equity value over the horizon. This is a back-of-envelope simplification — a real founder outcome is one big lumpy event, not a string of small ones — but the per-year decomposition gives a reasonable expected total. The same mechanism would apply to PE/VC carry if those paths are re-introduced (PE carry typically starts ~Y5; VC carry ~Y7 due to 10-year fund cycles).
 
 ---
 
@@ -231,18 +224,23 @@ F500 corporate roles have the highest retention — stable comp, predictable hou
 
 Founder retention combines two failure modes: (a) the company fails entirely, and (b) the founder is replaced even if the company survives.
 
-- **Company survival:** BLS data shows ~52% of businesses survive to year 5 and ~35% to year 10. VC-backed startups fail at higher rates — 75% never return cash to investors (Harvard Business School).
+- **Company survival:** BLS data shows ~52% of businesses survive to year 5 and ~35% to year 10. VC-backed startups fail at higher rates — CB Insights reports 67% stall and 75% never return cash to investors (Harvard Business School).
 - **Founder replacement:** 20-40% of founders are replaced by investors over the company's life. Among unicorns, ~35% of founders are no longer CEO (Harvard Law School/HBR research).
 
-Combined probability (founder still running their startup):
+The combined `stayProb` is approximately `P(company alive) × P(founder still CEO | company alive)`. For a VC-backed founder persona, we use roughly 25–35% company survival at Y10 and ~65–70% founder retention given survival, yielding ~17–20% at Y10:
 
 | Year | stayProb | Notes |
 |------|----------|-------|
-| 1 | 0.75 | ~20-25% company failure + early founder departures |
-| 2 | 0.55 | ~35% cumulative company failure; founder replacement begins |
-| 3 | 0.40 | ~40% companies gone; founder replacement accelerating |
-| 5 | 0.25 | ~50% companies dead; ~20% of surviving founders replaced |
-| 10 | 0.08 | ~65% companies dead; ~30% of surviving founders replaced |
+| 1 | 0.78 | ~20% early failures + a few founder departures |
+| 2 | 0.62 | ~35% cumulative failure; founder replacement begins |
+| 3 | 0.50 | ~40% companies gone; some replacement |
+| 4 | 0.42 | ~45% gone; replacement accelerates |
+| 5 | 0.35 | ~50% companies dead × ~70% founder retention |
+| 6 | 0.30 | continuing decline |
+| 7 | 0.26 | continuing decline |
+| 8 | 0.22 | continuing decline |
+| 9 | 0.19 | continuing decline |
+| 10 | 0.17 | ~25–30% company survival × ~65% founder retention |
 
 **Sources:** BLS Establishment Age and Survival Data, CB Insights Venture Capital Funnel, Harvard Business School (VC failure rates), HBR/Harvard Law (founder replacement research).
 
@@ -273,7 +271,10 @@ The exit-compensation mechanism ensures that attrition is not purely value-destr
 | **Exit compensation grows over time** | People who leave one path (e.g., a startup) typically take roles with increasing pay as they gain seniority. The model reflects this with a growing exit comp array. |
 | **Scenarios are independent of retention** | The model does not correlate equity outcomes with attrition (e.g., a bear market causing more people to leave). In reality, these are correlated. |
 | **No taxes are modeled** | All values are pre-tax. Effective tax rates vary significantly by jurisdiction, equity type (ISO vs. NSO vs. RSU), and holding period. |
-| **Partial discounting only** | Exit comp is discounted at 5%/yr when computing the outside option NPV, but primary-path earnings (cash and equity) are not discounted. Users should mentally apply their own discount rate to primary-path earnings. |
+| **Uniform 5% discount rate** | Applied to all dollars (on-path cash, on-path equity, and exit fallback comp). Roughly the long-run real return on a balanced portfolio — a reasonable opportunity cost. Users should pick a different rate if they have one in mind. |
+| **Vesting is not modeled** | A grant in year `y` is counted at its expected value in year `y`, not over its actual vesting schedule. For tech RSUs (4-year vest), this slightly overweights early-year EV; for startups with cliff-and-vest, the simplification is rougher. |
+| **Equity multiplier interpretation** | `mult(y)` represents the long-run expected value of $1 of equity granted in year `y`, by the time it's realized. The model does not separately track each grant's appreciation across subsequent years. |
+| **Exit comp follows the array trajectory after departure** | If you leave at year 3, the model walks through `exit_comp[3..9]` for the remaining years — i.e., your fallback comp grows. The array values reflect typical career growth in the fallback role (e.g., corp dev associate → director → VP). |
 | **Role adjustments are static** | The model applies fixed role-adjustment multipliers rather than modeling promotions or role changes dynamically. |
 
 ### Limitations

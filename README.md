@@ -4,21 +4,20 @@ An interactive tool for comparing the expected value of different career paths �
 
 ## What it does
 
-- Models career paths with year-by-year compensation, equity grants, survival probabilities, and exit role comp
-- **Simple view**: single equity multiplier across 4 paths (Consulting, Big Tech, Startup, Founder)
-- **Detailed view**: bear/base/bull equity scenarios across 7 paths (MBB, Oliver Wyman, FAANG, High-Growth Tech, Series A-B Startup, Series C-D Startup, Founder)
+- Models five career paths year-by-year: **Consulting**, **Big Tech (Generalist)**, **High-Growth Startup**, **Corp Strategy / Finance**, **Found a Company**
+- Combines cash compensation, equity grants (with an expected long-run multiplier), retention probability, and the fallback value of an exit role into a single expected-value number per path
+- Discounts every dollar — on-path cash, on-path equity, and exit fallback comp — uniformly at 5%/year, so comparisons are in today's dollars
 - Role selector: PM, Chief of Staff, Strategy & Ops, BizOps — adjusts cash and equity by role
-- Every assumption is editable
-- URL updates in real time — share your exact config by copying the link
+- Every assumption is editable, and your config is reflected in the URL — copy the link to share your exact setup
 
 ## How to use
 
 1. Visit the site
-2. Toggle between Simple and Detailed views
-3. Select your role type and time horizon
-4. Click any career path card to drill down into year-by-year breakdown
-5. Expand any path in the Assumptions section to tweak numbers
-6. Click "Share this config" to copy your personalized link
+2. Pick your role and time horizon (5 / 7 / 10 years)
+3. Toggle which paths to compare
+4. Click any card to drill into year-by-year cash vs equity EV
+5. Expand any path in "Assumptions by path" to tweak numbers
+6. Expand the "Methodology & Assumptions" panel at the bottom for the full formula and what's not captured
 
 ## Deploy your own
 
@@ -28,12 +27,19 @@ This is a single HTML file with no build step. To deploy:
 2. Go to Settings → Pages → Source: Deploy from branch → `main` / `root`
 3. Your site will be live at `https://yourusername.github.io/career-ev-analyzer/`
 
-## Methodology
+## Methodology in brief
 
-**Exit Role Comp**: When you leave a track (e.g., don't make Partner), the model pays exit comp for all remaining years in the horizon.
+For each year on a path:
 
-**Simple model**: `EV = P(on track) × [cash + grant × mult × P(eq≠0)] + P(off track) × exit_comp × remaining_years`
+```
+year_value = stay × [cash + grant × mult × (1 - P_zero)]
+           + (prev_stay - stay) × NPV_exit
+           + stay × founder_event
+total_EV   = Σ year_value(y) / (1.05)^y
+```
 
-**Detailed model**: Replaces single multiplier with bear/base/bull scenarios. `EV = P(on track) × [cash + grant × Σ(scenario_mult × scenario_prob)] + P(off track) × exit_comp × remaining_years`
+`NPV_exit(y)` is the present value at year `y` of following the exit-comp trajectory `exit_comp[y..horizon-1]` — your fallback comp grows over the remaining years, just like a real career would.
 
-**What's not captured**: Time value of money, taxes, cost of living, vesting schedules, non-financial value (learning, network, optionality).
+**Not captured:** taxes, cost of living, vesting cliffs, AMT on ISOs, illiquidity of private equity, correlation between market downturns and attrition, non-financial value (network, learning, optionality). It's a back-of-envelope, not a forecast.
+
+See [METHODOLOGY.md](METHODOLOGY.md) for full data sources and per-path calibration notes.

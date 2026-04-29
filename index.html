@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Career EV Analyzer</title>
-<meta name="description" content="Compare the expected value of different career paths — consulting, banking, tech, PE, VC, startups, and more.">
+<meta name="description" content="Compare the expected value of different career paths — consulting, big tech, startups, and founding a company.">
 <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet">
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
@@ -26,6 +26,7 @@ const { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 
 const ROLE_LABELS = { pm: "Product Manager", cos: "Chief of Staff", stratops: "Strategy & Ops", bizops: "BizOps" };
 const YEARS = [1,2,3,4,5,6,7,8,9,10];
+const DISCOUNT_RATE = 0.05;
 const dc = o => JSON.parse(JSON.stringify(o));
 
 // ── URL HASH STATE ──
@@ -58,142 +59,64 @@ function readHash() {
   return decompressState(hash);
 }
 
-// ── PRESETS ──
-const SIMPLE_PRESETS = {
-  paths: {
-    "Consulting": {
-      cashComp:[246,259,290,328,392,443,491,602,740,920],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
-      stayProb:[0.85,0.65,0.48,0.35,0.25,0.18,0.14,0.10,0.08,0.06],exitComp:[200,230,270,320,370,420,470,520,570,620],
-      description:"Blended MBB/T2. Post-MBA track. All cash + profit share at senior levels.",color:"#6366F1",hasEquity:false,
-    },
-    "Investment Banking": {
-      cashComp:[225,250,300,350,400,475,550,650,750,850],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
-      stayProb:[0.82,0.55,0.35,0.25,0.20,0.16,0.13,0.11,0.09,0.08],exitComp:[220,250,290,330,370,410,450,490,530,570],
-      description:"Bulge bracket IB. Analyst/Associate → VP → MD. Bonus-heavy comp.",color:"#EC4899",hasEquity:false,
-    },
-    "Private Equity": {
-      cashComp:[350,375,400,425,450,475,500,550,600,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
-      stayProb:[0.90,0.75,0.60,0.50,0.42,0.36,0.31,0.27,0.24,0.21],exitComp:[250,280,310,340,370,400,430,460,490,520],
-      founderEquity:[0,0,0,0,300,500,800,1200,1500,2000],founderEqProb:[0,0,0,0,0.40,0.45,0.50,0.55,0.55,0.60],
-      description:"UMM/MF PE. High base + bonus. Carry payouts begin Y5 as fund exits materialize.",color:"#8B5CF6",hasEquity:false,isFounder:true,
-      carryLabel:"Carry",
-    },
-    "Venture Capital": {
-      cashComp:[175,190,210,235,265,300,340,380,420,460],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
-      stayProb:[0.90,0.78,0.68,0.58,0.50,0.44,0.39,0.35,0.31,0.28],exitComp:[200,220,245,270,295,320,345,370,395,420],
-      founderEquity:[0,0,0,0,0,0,200,500,1000,2500],founderEqProb:[0,0,0,0,0,0,0.25,0.25,0.30,0.30],
-      description:"VC associate → partner track. Lower cash, carry from fund returns (10yr cycles).",color:"#14B8A6",hasEquity:false,isFounder:true,
-      carryLabel:"Carry",
-    },
-    "Big Tech (Generalist)": {
-      cashComp:[240,255,275,290,305,320,340,360,378,395],equityGrant:[175,190,225,280,325,385,450,525,650,825],equityMultiplier:[1.0,1.1,1.2,1.4,1.6,1.9,2.2,2.6,3.2,4.0],equityZeroProb:[0.01,0.01,0.01,0.01,0.02,0.02,0.02,0.02,0.03,0.03],
-      stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],exitComp:[220,240,265,290,315,340,365,390,415,440],
-      description:"Blends FAANG + high-growth tech. L5→L7+ track. Cash includes bonus.",color:"#10B981",hasEquity:true,
-      roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
-    },
-    "High-Growth Startup": {
-      cashComp:[200,215,235,255,275,300,325,350,375,400],equityGrant:[150,175,225,300,350,400,450,500,575,650],equityMultiplier:[1.0,1.1,1.3,1.5,1.8,2.2,2.6,3.0,3.5,4.0],equityZeroProb:[0.08,0.08,0.09,0.09,0.10,0.10,0.12,0.12,0.15,0.15],
-      stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],exitComp:[220,240,265,290,315,340,365,390,415,440],
-      description:"Series B-C (Anthropic/Anduril/Scale tier). Competitive cash, large equity upside.",color:"#F59E0B",hasEquity:true,
-      roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.10},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
-    },
-    "Corp Strategy / Finance": {
-      cashComp:[165,178,195,215,240,270,300,330,360,390],equityGrant:[30,35,45,60,75,95,115,140,170,200],equityMultiplier:[1.0,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.5],equityZeroProb:[0.01,0.01,0.01,0.01,0.01,0.01,0.02,0.02,0.02,0.02],
-      stayProb:[0.93,0.87,0.82,0.77,0.72,0.67,0.62,0.58,0.54,0.50],exitComp:[160,175,195,215,235,255,275,295,315,335],
-      description:"F500 strategy, FP&A, corp dev. Stable comp, modest equity (RSUs at public cos).",color:"#78716C",hasEquity:true,
-    },
-    "Found a Company": {
-      cashComp:[80,90,105,125,155,200,270,380,500,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],equityMultiplier:[1,1,1,1,1,1,1,1,1,1],equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
-      stayProb:[0.75,0.55,0.40,0.32,0.25,0.20,0.16,0.13,0.10,0.08],exitComp:[200,220,245,270,295,320,345,370,395,420],
-      founderEquity:[0,0,0,0,600,1500,3500,7000,12000,22000],founderEqProb:[0,0,0,0,0.08,0.06,0.05,0.04,0.035,0.03],
-      description:"Founder path. Low salary, equity as discrete liquidity events.",color:"#EF4444",hasEquity:false,isFounder:true,
-    },
-  },
-};
-const DEFAULT_SIMPLE_VISIBLE = ["Consulting","Big Tech (Generalist)","High-Growth Startup","Found a Company"];
-
-const DETAILED_PRESETS = {
+// ── PATH PRESETS ──
+const PRESETS = {
   "Consulting": {
-    cashComp:[246,259,290,328,392,443,491,602,740,920],equityGrant:[0,0,0,0,0,0,0,0,0,0],
-    stayProb:[0.85,0.65,0.48,0.35,0.25,0.18,0.14,0.10,0.08,0.06],exitComp:[200,230,270,320,370,420,470,520,570,620],
-    scenarios:null,description:"Blended MBB/T2. Post-MBA track. All cash + profit share at senior levels.",color:"#6366F1",hasEquity:false,
+    cashComp:[268,285,325,380,460,555,685,870,1050,1300],
+    equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    equityMultiplier:[1,1,1,1,1,1,1,1,1,1],
+    equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+    stayProb:[0.85,0.65,0.48,0.35,0.25,0.18,0.14,0.10,0.08,0.06],
+    exitComp:[200,230,270,320,370,420,470,520,570,620],
+    description:"Blended MBB/T2. Post-MBA track. Associate → EM → AP → Partner. All-in cash incl. base, signing, bonus, profit share.",
+    color:"#6366F1",hasEquity:false,
   },
-  "Investment Banking": {
-    cashComp:[225,250,300,350,400,475,550,650,750,850],equityGrant:[0,0,0,0,0,0,0,0,0,0],
-    stayProb:[0.82,0.55,0.35,0.25,0.20,0.16,0.13,0.11,0.09,0.08],exitComp:[220,250,290,330,370,410,450,490,530,570],
-    scenarios:null,description:"Bulge bracket (GS/MS/JPM). Analyst/Associate → VP → ED → MD. Bonus 50-100% of base.",color:"#EC4899",hasEquity:false,
-  },
-  "Private Equity": {
-    cashComp:[350,375,400,425,450,475,500,550,600,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],
-    stayProb:[0.90,0.75,0.60,0.50,0.42,0.36,0.31,0.27,0.24,0.21],exitComp:[250,280,310,340,370,400,430,460,490,520],
-    scenarios:null,founderEquity:[0,0,0,0,300,500,800,1200,1500,2000],founderEqProb:[0,0,0,0,0.40,0.45,0.50,0.55,0.55,0.60],
-    description:"UMM/MF PE. High base + bonus. Carry payouts begin ~Y5 as fund exits materialize.",color:"#8B5CF6",hasEquity:false,isFounder:true,
-    carryLabel:"Carry",
-  },
-  "Venture Capital": {
-    cashComp:[175,190,210,235,265,300,340,380,420,460],equityGrant:[0,0,0,0,0,0,0,0,0,0],
-    stayProb:[0.90,0.78,0.68,0.58,0.50,0.44,0.39,0.35,0.31,0.28],exitComp:[200,220,245,270,295,320,345,370,395,420],
-    scenarios:null,founderEquity:[0,0,0,0,0,0,200,500,1000,2500],founderEqProb:[0,0,0,0,0,0,0.25,0.25,0.30,0.30],
-    description:"VC associate → partner track. Lower cash, carry from fund returns (10yr fund cycles).",color:"#14B8A6",hasEquity:false,isFounder:true,
-    carryLabel:"Carry",
-  },
-  "FAANG (Meta/Google/Amazon)": {
-    cashComp:[240,250,265,280,290,305,320,340,355,370],equityGrant:[150,160,180,215,250,300,350,400,500,650],
-    stayProb:[0.93,0.88,0.82,0.76,0.70,0.64,0.58,0.53,0.48,0.44],exitComp:[220,240,265,290,315,340,365,390,415,440],
-    scenarios:{
-      bear:{label:"Bear (flat/down)",mult:[0.9,0.85,0.80,0.75,0.70,0.65,0.65,0.60,0.60,0.55],prob:[0.15,0.15,0.18,0.18,0.20,0.20,0.22,0.22,0.25,0.25]},
-      base:{label:"Base (steady growth)",mult:[1.0,1.10,1.20,1.35,1.50,1.70,1.90,2.20,2.50,3.00],prob:[0.70,0.70,0.67,0.65,0.62,0.60,0.58,0.56,0.53,0.50]},
-      bull:{label:"Bull (strong run)",mult:[1.1,1.30,1.60,2.00,2.50,3.00,3.50,4.00,4.50,5.00],prob:[0.15,0.15,0.15,0.17,0.18,0.20,0.20,0.22,0.22,0.25]},
-    },description:"Established FAANG. Stable RSUs. L5→L7 track. Bear: Meta-style 75% drawdown + recovery. Base: ~12% CAGR. Bull: strong performer.",color:"#10B981",hasEquity:true,
+  "Big Tech (Generalist)": {
+    cashComp:[240,255,275,290,305,320,340,360,378,395],
+    equityGrant:[175,190,225,280,325,385,450,525,650,825],
+    equityMultiplier:[1.0,1.1,1.2,1.4,1.6,1.9,2.2,2.6,3.2,4.0],
+    equityZeroProb:[0.01,0.01,0.01,0.01,0.02,0.02,0.02,0.02,0.03,0.03],
+    stayProb:[0.93,0.87,0.80,0.74,0.67,0.61,0.55,0.50,0.45,0.41],
+    exitComp:[220,240,265,290,315,340,365,390,415,440],
+    description:"Blends FAANG + high-growth tech. L5→L7+ track. Cash includes bonus.",
+    color:"#10B981",hasEquity:true,
     roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.92,eqAdj:0.85},stratops:{cashAdj:0.95,eqAdj:0.92},bizops:{cashAdj:0.90,eqAdj:0.88}},
   },
-  "High-Growth Tech (Nvidia/OpenAI)": {
-    cashComp:[250,265,285,300,320,340,360,380,400,420],equityGrant:[200,225,275,350,400,475,550,650,800,1000],
-    stayProb:[0.92,0.85,0.78,0.72,0.65,0.58,0.52,0.47,0.42,0.38],exitComp:[230,255,280,310,340,370,400,430,460,490],
-    scenarios:{
-      bear:{label:"Bear (correction)",mult:[0.7,0.5,0.4,0.35,0.30,0.25,0.25,0.20,0.20,0.15],prob:[0.20,0.20,0.22,0.22,0.25,0.25,0.28,0.28,0.30,0.30]},
-      base:{label:"Base (strong growth)",mult:[1.0,1.2,1.5,1.8,2.2,2.7,3.2,3.8,4.5,5.0],prob:[0.55,0.55,0.53,0.50,0.47,0.45,0.42,0.40,0.38,0.35]},
-      bull:{label:"Bull (AI supercycle)",mult:[1.2,1.6,2.2,3.0,4.0,5.0,6.5,8.0,9.5,11.0],prob:[0.25,0.25,0.25,0.28,0.28,0.30,0.30,0.32,0.32,0.35]},
-    },description:"AI-era high-flyers. Cisco fell 88% post-bubble; Nvidia did 226x over 10yr from small base. From current $3T, upside is more bounded.",color:"#06B6D4",hasEquity:true,
-    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.90,eqAdj:0.82},stratops:{cashAdj:0.93,eqAdj:0.90},bizops:{cashAdj:0.88,eqAdj:0.85}},
-  },
-  "Startup: Series A-B": {
-    cashComp:[160,170,180,195,210,230,250,270,290,310],equityGrant:[50,60,75,100,125,150,175,200,250,300],
-    stayProb:[0.85,0.75,0.65,0.56,0.48,0.40,0.34,0.29,0.25,0.21],exitComp:[175,195,220,248,275,300,325,350,375,400],
-    scenarios:{
-      bear:{label:"Bear (fails)",mult:[0,0,0,0,0,0,0,0,0,0],prob:[0.60,0.58,0.55,0.52,0.50,0.48,0.45,0.42,0.40,0.38]},
-      base:{label:"Base (moderate exit)",mult:[1.0,1.5,2.5,4.0,6.0,8.0,10.0,13.0,16.0,20.0],prob:[0.30,0.30,0.32,0.33,0.34,0.35,0.37,0.38,0.40,0.42]},
-      bull:{label:"Bull (breakout)",mult:[1.0,3.0,6.0,10.0,15.0,22.0,30.0,38.0,45.0,50.0],prob:[0.10,0.12,0.13,0.15,0.16,0.17,0.18,0.20,0.20,0.20]},
-    },description:"Early stage. ~60% fail (CB Insights). Bull capped at ~50x after dilution (Index Ventures data: 60% dilution seed→Series D).",color:"#F59E0B",hasEquity:true,
-    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.12},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
-  },
-  "Startup: Series C-D": {
-    cashComp:[195,210,230,250,275,300,325,350,375,400],equityGrant:[125,150,200,275,325,375,425,475,550,650],
-    stayProb:[0.90,0.82,0.75,0.68,0.60,0.53,0.47,0.42,0.37,0.33],exitComp:[210,235,260,290,315,340,365,390,415,440],
-    scenarios:{
-      bear:{label:"Bear (down round)",mult:[0.8,0.6,0.5,0.4,0.3,0.25,0.20,0.15,0.10,0.10],prob:[0.25,0.23,0.22,0.20,0.18,0.17,0.16,0.15,0.15,0.15]},
-      base:{label:"Base (solid IPO)",mult:[1.0,1.1,1.3,1.5,1.8,2.0,2.3,2.5,2.8,3.0],prob:[0.55,0.57,0.58,0.60,0.62,0.63,0.64,0.65,0.65,0.65]},
-      bull:{label:"Bull (category winner)",mult:[1.0,1.4,1.8,2.5,3.0,3.5,4.0,4.5,5.0,5.5],prob:[0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20,0.20]},
-    },description:"Late stage (Stripe/Databricks tier). IPOs typically 1.5-3x last private round. Stripe: ~1.8x over 2yr from $50B.",color:"#F97316",hasEquity:true,
-    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.05},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.90}},
+  "High-Growth Startup": {
+    cashComp:[200,215,235,255,275,300,325,350,375,400],
+    equityGrant:[150,175,225,300,350,400,450,500,575,650],
+    equityMultiplier:[1.0,1.1,1.3,1.5,1.8,2.2,2.6,3.0,3.5,4.0],
+    equityZeroProb:[0.08,0.08,0.09,0.09,0.10,0.10,0.12,0.12,0.15,0.15],
+    stayProb:[0.88,0.78,0.70,0.62,0.54,0.46,0.40,0.35,0.30,0.26],
+    exitComp:[220,240,265,290,315,340,365,390,415,440],
+    description:"Series B-C (Anthropic/Anduril/Scale tier). Competitive cash, large equity upside.",
+    color:"#F59E0B",hasEquity:true,
+    roles:{pm:{cashAdj:1.0,eqAdj:1.0},cos:{cashAdj:0.95,eqAdj:1.10},stratops:{cashAdj:0.93,eqAdj:0.95},bizops:{cashAdj:0.88,eqAdj:0.88}},
   },
   "Corp Strategy / Finance": {
-    cashComp:[165,178,195,215,240,270,300,330,360,390],equityGrant:[30,35,45,60,75,95,115,140,170,200],
-    stayProb:[0.93,0.87,0.82,0.77,0.72,0.67,0.62,0.58,0.54,0.50],exitComp:[160,175,195,215,235,255,275,295,315,335],
-    scenarios:{
-      bear:{label:"Bear (flat stock)",mult:[0.9,0.85,0.80,0.75,0.70,0.70,0.65,0.65,0.60,0.60],prob:[0.15,0.15,0.18,0.18,0.20,0.20,0.22,0.22,0.25,0.25]},
-      base:{label:"Base (steady)",mult:[1.0,1.05,1.10,1.15,1.20,1.25,1.30,1.35,1.40,1.50],prob:[0.70,0.70,0.67,0.65,0.62,0.60,0.58,0.56,0.53,0.50]},
-      bull:{label:"Bull (strong co.)",mult:[1.1,1.20,1.35,1.50,1.70,1.90,2.10,2.30,2.50,2.80],prob:[0.15,0.15,0.15,0.17,0.18,0.20,0.20,0.22,0.22,0.25]},
-    },description:"F500 strategy, FP&A, corp dev. Stable comp, modest equity (RSUs at public cos).",color:"#78716C",hasEquity:true,
+    cashComp:[165,178,195,215,240,270,300,330,360,390],
+    equityGrant:[30,35,45,60,75,95,115,140,170,200],
+    equityMultiplier:[1.0,1.05,1.1,1.15,1.2,1.25,1.3,1.35,1.4,1.5],
+    equityZeroProb:[0.01,0.01,0.01,0.01,0.01,0.01,0.02,0.02,0.02,0.02],
+    stayProb:[0.93,0.87,0.82,0.77,0.72,0.67,0.62,0.58,0.54,0.50],
+    exitComp:[160,175,195,215,235,255,275,295,315,335],
+    description:"F500 strategy, FP&A, corp dev. Stable comp, modest equity (RSUs at public cos).",
+    color:"#78716C",hasEquity:true,
   },
   "Found a Company": {
-    cashComp:[80,90,105,125,155,200,270,380,500,650],equityGrant:[0,0,0,0,0,0,0,0,0,0],
-    stayProb:[0.75,0.55,0.40,0.32,0.25,0.20,0.16,0.13,0.10,0.08],exitComp:[200,220,245,270,295,320,345,370,395,420],
-    scenarios:null,founderEquity:[0,0,0,0,600,1500,3500,7000,12000,22000],founderEqProb:[0,0,0,0,0.08,0.06,0.05,0.04,0.035,0.03],
-    description:"Founder path. Discrete liquidity events.",color:"#EF4444",hasEquity:false,isFounder:true,
+    cashComp:[80,90,105,125,155,200,270,380,500,650],
+    equityGrant:[0,0,0,0,0,0,0,0,0,0],
+    equityMultiplier:[1,1,1,1,1,1,1,1,1,1],
+    equityZeroProb:[0,0,0,0,0,0,0,0,0,0],
+    stayProb:[0.78,0.62,0.50,0.42,0.35,0.30,0.26,0.22,0.19,0.17],
+    exitComp:[200,220,245,270,295,320,345,370,395,420],
+    founderEquity:[0,0,0,0,600,1500,3500,7000,12000,22000],
+    founderEqProb:[0,0,0,0,0.08,0.06,0.05,0.04,0.035,0.03],
+    description:"Founder path. Low salary, equity as discrete liquidity events at funding milestones / exit.",
+    color:"#EF4444",hasEquity:false,isFounder:true,
   },
 };
-const DEFAULT_DETAILED_VISIBLE = ["Consulting","FAANG (Meta/Google/Amazon)","Startup: Series A-B","Found a Company"];
+const DEFAULT_VISIBLE = ["Consulting","Big Tech (Generalist)","High-Growth Startup","Found a Company"];
 
 // ── COMPUTATION ──
 function applyRole(path, roleKey) {
@@ -201,52 +124,39 @@ function applyRole(path, roleKey) {
   const r = path.roles[roleKey];
   return { ...path, cashComp: path.cashComp.map(v => Math.round(v * r.cashAdj)), equityGrant: path.equityGrant.map(v => Math.round(v * r.eqAdj)) };
 }
-const EXIT_DISCOUNT_RATE = 0.05;
+function df(y) { return Math.pow(1 + DISCOUNT_RATE, y); }
 function exitOptionNPV(exitComp, departY, horizon) {
   let npv = 0;
-  for (let t = departY; t < horizon; t++) npv += exitComp[departY] / Math.pow(1 + EXIT_DISCOUNT_RATE, t - departY);
+  for (let t = departY; t < horizon; t++) npv += exitComp[t] / Math.pow(1 + DISCOUNT_RATE, t - departY);
   return npv;
 }
-function computeSimpleEV(path, horizon) {
+function computeEV(path, horizon) {
   let total = 0;
   for (let y = 0; y < horizon; y++) {
     const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1];
     const eq = path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
     let f = 0;
     if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
-    total += s * (path.cashComp[y] + eq) + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon) + f;
+    const yearVal = s * (path.cashComp[y] + eq) + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon) + f;
+    total += yearVal / df(y);
   }
   return total;
 }
-function computeSimpleBreakdown(path, horizon) {
+function computeBreakdown(path, horizon) {
   let cC = 0, cE = 0;
   const data = [];
   for (let y = 0; y < horizon; y++) {
     const s = path.stayProb[y], prevS = y === 0 ? 1 : path.stayProb[y - 1];
-    const cash = s * path.cashComp[y] + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon);
-    const eq = s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
-    let f = 0;
-    if (path.founderEquity && path.founderEqProb) f = s * path.founderEquity[y] * path.founderEqProb[y];
-    cC += cash; cE += eq + f;
-    data.push({ year: `Y${y + 1}`, cash: Math.round(cash), equity: Math.round(eq + f), cumCash: Math.round(cC), cumEquity: Math.round(cE), cumTotal: Math.round(cC + cE) });
+    const cashRaw = s * path.cashComp[y] + (prevS - s) * exitOptionNPV(path.exitComp, y, horizon);
+    const eqRaw = s * path.equityGrant[y] * path.equityMultiplier[y] * (1 - path.equityZeroProb[y]);
+    let fRaw = 0;
+    if (path.founderEquity && path.founderEqProb) fRaw = s * path.founderEquity[y] * path.founderEqProb[y];
+    const d = df(y);
+    const cash = cashRaw / d, eq = (eqRaw + fRaw) / d;
+    cC += cash; cE += eq;
+    data.push({ year: `Y${y + 1}`, cash: Math.round(cash), equity: Math.round(eq), cumCash: Math.round(cC), cumEquity: Math.round(cE), cumTotal: Math.round(cC + cE) });
   }
   return data;
-}
-function computeDetailedEV(rawPath, horizon, role) {
-  const p = rawPath.roles?.[role] ? applyRole(rawPath, role) : rawPath;
-  let total = 0, cashTotal = 0, eqTotal = 0;
-  const yearly = [];
-  for (let y = 0; y < horizon; y++) {
-    const s = p.stayProb[y], prevS = y === 0 ? 1 : p.stayProb[y - 1];
-    const cashEV = s * p.cashComp[y] + (prevS - s) * exitOptionNPV(p.exitComp, y, horizon);
-    let eqEV = 0;
-    if (p.scenarios) { for (const sc of Object.values(p.scenarios)) { eqEV += s * p.equityGrant[y] * sc.mult[y] * sc.prob[y]; } }
-    let fEV = 0;
-    if (p.founderEquity && p.founderEqProb) fEV = s * p.founderEquity[y] * p.founderEqProb[y];
-    cashTotal += cashEV; eqTotal += eqEV + fEV; total += cashEV + eqEV + fEV;
-    yearly.push({ year: `Y${y + 1}`, cash: Math.round(cashEV), equity: Math.round(eqEV + fEV), cumCash: Math.round(cashTotal), cumEquity: Math.round(eqTotal), cumTotal: Math.round(total) });
-  }
-  return { total, cashTotal, eqTotal, yearly };
 }
 function fmtK(v) { return Math.abs(v) >= 1000 ? `$${(v / 1000).toFixed(1)}M` : `$${Math.round(v)}K`; }
 
@@ -264,27 +174,9 @@ function GridEditor({ label, arr, scale = 1, step = 1, onChange }) {
   return (<Fragment><div style={{ color: "#888", textAlign: "right", paddingRight: 8, whiteSpace: "nowrap", fontSize: 10.5 }}>{label}</div>{YEARS.map((_, i) => (<input key={i} type="number" step={step} value={Math.round(arr[i] * scale * 100) / 100} onChange={e => { const v = [...arr]; v[i] = Number(e.target.value) / scale; onChange(v); }} style={{ width: "100%", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 4, color: "#ccc", textAlign: "center", padding: "5px 2px", fontFamily: "'Space Mono', monospace", fontSize: 11, outline: "none" }} />))}</Fragment>);
 }
 
-function PathEditor({ name, path, onChange, color, isDetailed }) {
+function PathEditor({ name, path, onChange, color }) {
   const [open, setOpen] = useState(false);
   const update = (key, val) => onChange({ ...path, [key]: val });
-  const updateScenario = (sc, key, val) => {
-    const s = dc(path.scenarios);
-    s[sc][key] = val;
-    if (key === "prob") {
-      const others = Object.keys(s).filter(k => k !== sc);
-      for (let i = 0; i < val.length; i++) {
-        const newVal = val[i];
-        const othersSum = others.reduce((sum, k) => sum + s[k].prob[i], 0);
-        const remaining = Math.max(0, 1 - newVal);
-        if (othersSum > 0) {
-          others.forEach(k => { s[k].prob[i] = s[k].prob[i] / othersSum * remaining; });
-        } else {
-          others.forEach(k => { s[k].prob[i] = remaining / others.length; });
-        }
-      }
-    }
-    onChange({ ...path, scenarios: s });
-  };
   return (<div style={{ background: "rgba(255,255,255,0.02)", border: `1px solid ${color}18`, borderLeft: `3px solid ${color}`, borderRadius: 8, padding: "12px 16px", marginBottom: 8 }}>
     <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}><div style={{ width: 10, height: 10, borderRadius: "50%", background: color, boxShadow: `0 0 8px ${color}40` }} /><span style={{ fontWeight: 600, fontSize: 14, color: "#ddd" }}>{name}</span></div>
@@ -295,13 +187,78 @@ function PathEditor({ name, path, onChange, color, isDetailed }) {
       <div style={{ color: "#555", fontWeight: 600, textAlign: "right", paddingRight: 8 }}>Year</div>
       {YEARS.map(y => <div key={y} style={{ color: "#666", textAlign: "center", fontFamily: "'Space Mono', monospace", fontWeight: 700 }}>{y}</div>)}
       <GridEditor label="Cash ($K)" arr={path.cashComp} onChange={v => update("cashComp", v)} />
-      {!isDetailed && path.hasEquity !== false && path.equityGrant && path.equityMultiplier && <Fragment><GridEditor label="Eq. Grant ($K)" arr={path.equityGrant} onChange={v => update("equityGrant", v)} /><GridEditor label="Eq. Mult." arr={path.equityMultiplier} step={0.1} onChange={v => update("equityMultiplier", v)} /><GridEditor label={"Eq.\u21920 %"} arr={path.equityZeroProb} scale={100} onChange={v => update("equityZeroProb", v)} /></Fragment>}
-      {isDetailed && path.scenarios && <Fragment><GridEditor label="Eq. Grant ($K)" arr={path.equityGrant} onChange={v => update("equityGrant", v)} />
-        {Object.entries(path.scenarios).map(([k, sc]) => (<Fragment key={k}><GridEditor label={`${k.charAt(0).toUpperCase() + k.slice(1)} Mult.`} arr={sc.mult} step={0.1} onChange={v => updateScenario(k, "mult", v)} /><GridEditor label={`${k.charAt(0).toUpperCase() + k.slice(1)} Prob %`} arr={sc.prob} scale={100} onChange={v => updateScenario(k, "prob", v)} /></Fragment>))}</Fragment>}
+      {path.hasEquity !== false && <Fragment>
+        <GridEditor label="Eq. Grant ($K)" arr={path.equityGrant} onChange={v => update("equityGrant", v)} />
+        <GridEditor label="Eq. Mult." arr={path.equityMultiplier} step={0.1} onChange={v => update("equityMultiplier", v)} />
+        <GridEditor label="P(eq=0) %" arr={path.equityZeroProb} scale={100} onChange={v => update("equityZeroProb", v)} />
+      </Fragment>}
       <GridEditor label="Stay %" arr={path.stayProb} scale={100} onChange={v => update("stayProb", v)} />
       <GridEditor label="Exit Role ($K/yr)" arr={path.exitComp} onChange={v => update("exitComp", v)} />
-      {path.isFounder && <Fragment><GridEditor label={`${path.carryLabel || "Liq. Event"} ($K)`} arr={path.founderEquity} onChange={v => update("founderEquity", v)} /><GridEditor label={`${path.carryLabel || "Liq."} Prob %`} arr={path.founderEqProb} scale={100} onChange={v => update("founderEqProb", v)} /></Fragment>}
+      {path.isFounder && <Fragment>
+        <GridEditor label="Liq. Event ($K)" arr={path.founderEquity} onChange={v => update("founderEquity", v)} />
+        <GridEditor label="Liq. Prob %" arr={path.founderEqProb} scale={100} onChange={v => update("founderEqProb", v)} />
+      </Fragment>}
     </div></div>)}
+  </div>);
+}
+
+function MethodologyPanel() {
+  const [open, setOpen] = useState(false);
+  const sec = { color: "#bbb", fontWeight: 700, fontSize: 12.5, marginTop: 16, marginBottom: 6, letterSpacing: 0.3 };
+  const par = { color: "#888", fontSize: 12.5, lineHeight: 1.75, marginBottom: 6 };
+  const code = { fontFamily: "'Space Mono', monospace", color: "#bbb", background: "rgba(255,255,255,0.04)", padding: "1px 6px", borderRadius: 3, fontSize: 11.5 };
+  const bold = { color: "#bbb", fontWeight: 600 };
+  return (<div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: "14px 16px", marginTop: 16 }}>
+    <div onClick={() => setOpen(!open)} style={{ display: "flex", justifyContent: "space-between", alignItems: "center", cursor: "pointer" }}>
+      <div>
+        <div style={{ fontSize: 11, color: "#888", fontWeight: 700, letterSpacing: 0.5 }}>METHODOLOGY &amp; ASSUMPTIONS</div>
+        <div style={{ fontSize: 11.5, color: "#555", marginTop: 3 }}>How EV is calculated, key assumptions, what's not captured. Click to expand.</div>
+      </div>
+      <span style={{ color: "#555", fontSize: 16, transform: open ? "rotate(180deg)" : "none", transition: "0.2s" }}>&#9662;</span>
+    </div>
+    {open && (<div style={{ marginTop: 8 }}>
+      <div style={sec}>What this is</div>
+      <div style={par}>A side-by-side comparison of the <span style={bold}>expected dollar value</span> of five career paths over a 5-, 7-, or 10-year horizon. Every dollar — on-path cash, on-path equity, and the value of your fallback job if you leave — is weighted by the probability it actually happens, then discounted back to today's dollars. The output is a single EV number per path, plus a year-by-year breakdown.</div>
+      <div style={par}>It's a <span style={bold}>back-of-envelope</span>, not a forecast. The point is to surface the second-order effects that gut intuition misses — like "MBB pays $268K Y1, but 94% of people are gone by Y10."</div>
+
+      <div style={sec}>Paths in this comparison</div>
+      <div style={par}><span style={bold}>Consulting</span> — Blended MBB / Tier-2 (McKinsey, BCG, Bain, Oliver Wyman, Strategy&). Post-MBA Associate → EM → AP → Partner. All cash, no equity, brutal up-or-out.</div>
+      <div style={par}><span style={bold}>Big Tech (Generalist)</span> — FAANG + high-growth public tech (Google, Meta, Nvidia, etc.). L5 → L7+ track. Stable cash + meaningful RSU grants that grow ~4× over the horizon in expectation.</div>
+      <div style={par}><span style={bold}>High-Growth Startup</span> — Series B/C tier (Anthropic, Anduril, Scale, Databricks-stage). Competitive cash, large equity grants, real failure risk, massive upside if it works.</div>
+      <div style={par}><span style={bold}>Corp Strategy / Finance</span> — F500 strategy, FP&A, corp dev. Stable cash + modest RSUs at public co's. Lower ceiling, much higher floor.</div>
+      <div style={par}><span style={bold}>Found a Company</span> — VC-backed founder. Low salary, high attrition (~17% still running their company at Y10), equity as discrete liquidity events at funding milestones / exit.</div>
+
+      <div style={sec}>The formula in plain English</div>
+      <div style={par}>For each year on a path, EV is: <span style={bold}>(probability you're still on the path) × (cash + expected equity)</span> + <span style={bold}>(probability you've already left) × (NPV of your fallback job for the rest of the horizon)</span>. Each year's contribution is then discounted at 5%/yr. Sum across all years.</div>
+
+      <div style={sec}>The math, for the curious</div>
+      <div style={par}>For each year y from 0 to horizon-1:</div>
+      <div style={{ ...par, paddingLeft: 12 }}>
+        <span style={code}>year_value(y) = stay(y) × [cash(y) + grant(y) × mult(y) × (1 − P_zero(y))] + (stay(y−1) − stay(y)) × NPV_exit(y) + stay(y) × founder_event(y)</span>
+      </div>
+      <div style={{ ...par, paddingLeft: 12 }}>
+        <span style={code}>total_EV = Σ year_value(y) / (1.05)^y</span>
+      </div>
+      <div style={par}>Where <span style={code}>NPV_exit(y)</span> is the present value (at year y) of following the exit-comp trajectory <span style={code}>exit_comp[y..horizon-1]</span> through the remaining years — i.e., your fallback comp grows year-over-year, just like your on-path comp does.</div>
+
+      <div style={sec}>Key assumptions</div>
+      <div style={par}><span style={bold}>5% annual discount rate</span>, applied uniformly to all dollars (on-path cash, on-path equity, exit fallback). Roughly the long-run real return on a balanced portfolio — a reasonable opportunity cost for "what else could this dollar earn." Pick a different rate by editing the source if you have one in mind.</div>
+      <div style={par}><span style={bold}>Cash compensation</span> is all-in: base + performance bonus (at midpoint, not the conservative end) + signing bonus amortized into Y1. For consulting, the array reflects the Associate → EM → AP → Partner ladder; for tech, it includes target bonus.</div>
+      <div style={par}><span style={bold}>Stay probability</span> is the fraction of a starting cohort still on that <span style={bold}>exact</span> path at year y — not "still in any career," but "still at this firm or company type." It captures voluntary attrition, layoffs, up-or-out cuts, and (for founders) company failure plus founder replacement.</div>
+      <div style={par}><span style={bold}>Equity multiplier</span> represents the long-run expected value of $1 of equity granted in year y, by the time it's realized. A multiplier of 4× means an RSU grant is expected to be worth 4× face value when it pays out. The single multiplier here is the probability-weighted average of bear / base / bull scenarios — a more detailed scenario breakdown is on the roadmap.</div>
+      <div style={par}><span style={bold}>P(eq=0)</span> is the probability the equity goes to zero — startup failure, severe drawdown, etc. Applied as <span style={code}>grant × mult × (1 − P_zero)</span>.</div>
+      <div style={par}><span style={bold}>Exit role compensation</span> is the year-by-year fallback trajectory: what you'd earn each year if you'd left this path. Leave at Y3 → you start at exit_comp[3] and continue along exit_comp[4..9] for the rest of the horizon. Fallback comp grows with you, reflecting that ex-consultants, ex-Big-Tech, etc. continue to advance in their next careers.</div>
+      <div style={par}><span style={bold}>Founder equity</span> is modeled as discrete liquidity events (Series A, growth round, exit) with a value and probability per year, rather than annual grants. Each year's expected payout = stay(y) × event_value(y) × event_prob(y).</div>
+      <div style={par}><span style={bold}>Role adjustments</span> apply fixed cash and equity multipliers per role per path (e.g., a Chief of Staff at a startup gets 0.95× cash, 1.10× equity vs. a PM benchmark).</div>
+
+      <div style={sec}>What's not captured</div>
+      <div style={par}>Taxes (everything is pre-tax), cost of living, vesting cliffs and schedules, AMT on ISOs, illiquidity of private equity, correlation between market downturns and attrition (in reality these move together), non-financial value (network, learning, optionality), and the genuinely fat-tailed nature of startup outcomes — three averaged scenarios understate how binary early-stage outcomes are.</div>
+
+      <div style={sec}>Data sources</div>
+      <div style={par}>Compensation: Levels.fyi 2025 End of Year Pay Report, Carta State of Startup Compensation H1 2025, Management Consulted 2026 Salary Report, CaseLane McKinsey Salary 2025. Survival / attrition: BLS Establishment Age and Survival Data, CB Insights Venture Capital Funnel, HBR/Harvard Law founder replacement research. Equity multipliers: historical stock data (Nvidia, Meta, Cisco, Amazon), Index Ventures employee dilution benchmarks, Carta step-up multiples. Full citations in METHODOLOGY.md.</div>
+
+      <div style={{ ...par, marginTop: 14, color: "#555", fontSize: 11, fontStyle: "italic" }}>Not financial advice. Every number is editable in the "Assumptions by path" section above — your config is encoded in the URL, so you can copy it and share your exact setup.</div>
+    </div>)}
   </div>);
 }
 
@@ -309,35 +266,40 @@ function PathEditor({ name, path, onChange, color, isDetailed }) {
 function App() {
   const initState = useRef(readHash());
   const init = initState.current;
-  const [mode, setMode] = useState(init?.mode || "simple");
   const [horizon, setHorizon] = useState(init?.horizon || 10);
   const [role, setRole] = useState(init?.role || "pm");
-  const [simplePaths, setSimplePaths] = useState(init?.simplePaths ? dc(init.simplePaths) : dc(SIMPLE_PRESETS.paths));
-  const [detailedPaths, setDetailedPaths] = useState(init?.detailedPaths ? dc(init.detailedPaths) : dc(DETAILED_PRESETS));
-  const [simpleVisible, setSimpleVisible] = useState(init?.simpleVisible || DEFAULT_SIMPLE_VISIBLE);
-  const [detailedVisible, setDetailedVisible] = useState(init?.detailedVisible || DEFAULT_DETAILED_VISIBLE);
+  const [paths, setPaths] = useState(init?.paths ? dc(init.paths) : dc(PRESETS));
+  const [visible, setVisible] = useState(init?.visible || DEFAULT_VISIBLE);
   const [drill, setDrill] = useState(null);
 
-  const visible = mode === "simple" ? simpleVisible : detailedVisible;
-  const setVisible = mode === "simple" ? setSimpleVisible : setDetailedVisible;
-  const allPathNames = mode === "simple" ? Object.keys(simplePaths) : Object.keys(detailedPaths);
+  const allPathNames = Object.keys(paths);
   const togglePath = (name) => { setVisible(prev => prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]); setDrill(null); };
 
-  useEffect(() => { const t = setTimeout(() => writeHash({ mode, horizon, role, simplePaths, detailedPaths, simpleVisible, detailedVisible }), 500); return () => clearTimeout(t); }, [mode, horizon, role, simplePaths, detailedPaths, simpleVisible, detailedVisible]);
+  useEffect(() => { const t = setTimeout(() => writeHash({ horizon, role, paths, visible }), 500); return () => clearTimeout(t); }, [horizon, role, paths, visible]);
 
-  const resetAll = useCallback(() => { setSimplePaths(dc(SIMPLE_PRESETS.paths)); setDetailedPaths(dc(DETAILED_PRESETS)); setSimpleVisible(DEFAULT_SIMPLE_VISIBLE); setDetailedVisible(DEFAULT_DETAILED_VISIBLE); setDrill(null); }, []);
+  const resetAll = useCallback(() => { setPaths(dc(PRESETS)); setVisible(DEFAULT_VISIBLE); setRole("pm"); setDrill(null); }, []);
 
-  const filteredSimple = useMemo(() => Object.fromEntries(Object.entries(simplePaths).filter(([n]) => simpleVisible.includes(n))), [simplePaths, simpleVisible]);
-  const filteredDetailed = useMemo(() => Object.fromEntries(Object.entries(detailedPaths).filter(([n]) => detailedVisible.includes(n))), [detailedPaths, detailedVisible]);
+  const filtered = useMemo(() => Object.fromEntries(Object.entries(paths).filter(([n]) => visible.includes(n))), [paths, visible]);
 
-  const simpleResults = useMemo(() => Object.entries(filteredSimple).map(([name, raw]) => { const p = raw.roles ? applyRole(raw, role) : raw; const bd = computeSimpleBreakdown(p, horizon); const last = bd[bd.length - 1]; return { name, ev: computeSimpleEV(p, horizon), cashEV: last.cumCash, equityEV: last.cumEquity, color: raw.color, bd }; }).sort((a, b) => b.ev - a.ev), [filteredSimple, role, horizon]);
-  const simpleCum = useMemo(() => { const all = {}; Object.entries(filteredSimple).forEach(([n, raw]) => { all[n] = computeSimpleBreakdown(raw.roles ? applyRole(raw, role) : raw, horizon); }); return Array.from({ length: horizon }, (_, y) => { const pt = { year: `Y${y + 1}` }; Object.entries(all).forEach(([n, d]) => { pt[n] = d[y].cumTotal; }); return pt; }); }, [filteredSimple, role, horizon]);
-  const detailedResults = useMemo(() => Object.entries(filteredDetailed).map(([name, raw]) => { const res = computeDetailedEV(raw, horizon, role); return { name, ev: res.total, cashEV: Math.round(res.cashTotal), equityEV: Math.round(res.eqTotal), color: raw.color, yearly: res.yearly }; }).sort((a, b) => b.ev - a.ev), [filteredDetailed, role, horizon]);
-  const detailedCum = useMemo(() => { const all = {}; Object.entries(filteredDetailed).forEach(([n, raw]) => { all[n] = computeDetailedEV(raw, horizon, role).yearly; }); return Array.from({ length: horizon }, (_, y) => { const pt = { year: `Y${y + 1}` }; Object.entries(all).forEach(([n, d]) => { pt[n] = d[y].cumTotal; }); return pt; }); }, [filteredDetailed, role, horizon]);
+  const results = useMemo(() => Object.entries(filtered).map(([name, raw]) => {
+    const p = raw.roles ? applyRole(raw, role) : raw;
+    const bd = computeBreakdown(p, horizon);
+    const last = bd[bd.length - 1];
+    return { name, ev: computeEV(p, horizon), cashEV: last.cumCash, equityEV: last.cumEquity, color: raw.color, bd, hasRoles: !!raw.roles };
+  }).sort((a, b) => b.ev - a.ev), [filtered, role, horizon]);
 
-  const results = mode === "simple" ? simpleResults : detailedResults;
-  const cumData = mode === "simple" ? simpleCum : detailedCum;
-  const maxEV = results[0]; const pathColors = {}; results.forEach(r => pathColors[r.name] = r.color);
+  const cumData = useMemo(() => {
+    const all = {};
+    Object.entries(filtered).forEach(([n, raw]) => { all[n] = computeBreakdown(raw.roles ? applyRole(raw, role) : raw, horizon); });
+    return Array.from({ length: horizon }, (_, y) => {
+      const pt = { year: `Y${y + 1}` };
+      Object.entries(all).forEach(([n, d]) => { pt[n] = d[y].cumTotal; });
+      return pt;
+    });
+  }, [filtered, role, horizon]);
+
+  const maxEV = results[0];
+  const pathColors = {}; results.forEach(r => pathColors[r.name] = r.color);
   const drillData = drill ? results.find(r => r.name === drill) : null;
   const cg = results.length <= 4 ? results.length : 4;
 
@@ -346,11 +308,10 @@ function App() {
       <div style={{ marginBottom: 22 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>{["CAREER", "EV", "ANALYZER"].map((w, i) => <span key={w} style={{ fontFamily: "'Space Mono', monospace", fontSize: 12, color: i === 1 ? (maxEV?.color || "#6366F1") : "#444", letterSpacing: 3 }}>{w}</span>)}</div>
         <h1 style={{ fontSize: 26, fontWeight: 700, margin: 0, color: "#f0f0f0" }}>What's your career actually worth?</h1>
-        <p style={{ color: "#555", fontSize: 13, marginTop: 8, maxWidth: 680, lineHeight: 1.65 }}>Expected value weights each outcome by its probability. <strong style={{ color: "#777" }}>Simple</strong> uses a single equity multiplier. <strong style={{ color: "#777" }}>Detailed</strong> adds bear/base/bull scenarios and splits tech/startups by stage. Select which paths to compare below.</p>
+        <p style={{ color: "#666", fontSize: 13, marginTop: 8, maxWidth: 720, lineHeight: 1.65 }}>Expected value weights each year of comp by the probability you're still on that path, adds your fallback job's value if you've already left, and discounts everything to today's dollars at 5%/yr. Pick paths to compare, choose your role, click any card to drill in. Every assumption is editable below — your config is in the URL.</p>
       </div>
 
       <div style={{ display: "flex", gap: 18, marginBottom: 20, flexWrap: "wrap", alignItems: "flex-end" }}>
-        <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>View</label><div style={{ display: "flex", gap: 4 }}><Btn active={mode === "simple"} onClick={() => { setMode("simple"); setDrill(null); }} label="Simple" /><Btn active={mode === "detailed"} onClick={() => { setMode("detailed"); setDrill(null); }} label="Detailed" /></div></div>
         <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Role Type</label><div style={{ display: "flex", gap: 4, flexWrap: "wrap" }}>{Object.entries(ROLE_LABELS).map(([k, l]) => <Btn key={k} active={role === k} onClick={() => setRole(k)} label={l} />)}</div></div>
         <div><label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Horizon</label><div style={{ display: "flex", gap: 4 }}>{[5, 7, 10].map(h => <Btn key={h} active={horizon === h} onClick={() => setHorizon(h)} label={`${h}yr`} mono />)}</div></div>
       </div>
@@ -359,9 +320,9 @@ function App() {
         <label style={{ display: "block", fontSize: 10, color: "#555", marginBottom: 6, fontWeight: 700, letterSpacing: 1.5, textTransform: "uppercase" }}>Compare Paths</label>
         <div style={{ display: "flex", gap: 5, flexWrap: "wrap" }}>
           {allPathNames.map(name => {
-            const pathData = mode === "simple" ? simplePaths[name] : detailedPaths[name];
+            const pd = paths[name];
             const isOn = visible.includes(name);
-            return <button key={name} onClick={() => togglePath(name)} style={{ padding: "5px 11px", fontSize: 11, fontWeight: 600, background: isOn ? `${pathData.color}18` : "rgba(255,255,255,0.02)", border: isOn ? `1px solid ${pathData.color}50` : "1px solid rgba(255,255,255,0.05)", borderRadius: 14, color: isOn ? pathData.color : "#555", cursor: "pointer", transition: "all 0.15s" }}>{name}</button>;
+            return <button key={name} onClick={() => togglePath(name)} style={{ padding: "5px 11px", fontSize: 11, fontWeight: 600, background: isOn ? `${pd.color}18` : "rgba(255,255,255,0.02)", border: isOn ? `1px solid ${pd.color}50` : "1px solid rgba(255,255,255,0.05)", borderRadius: 14, color: isOn ? pd.color : "#555", cursor: "pointer", transition: "all 0.15s" }}>{name}</button>;
           })}
         </div>
       </div>
@@ -391,25 +352,16 @@ function App() {
       </div>
 
       {drillData && (<div style={{ background: "rgba(255,255,255,0.015)", border: `1px solid ${drillData.color}30`, borderRadius: 10, padding: "16px 14px 10px", marginBottom: 20 }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 10, height: 10, borderRadius: "50%", background: drillData.color }} /><span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{drillData.name}</span><span style={{ fontSize: 11, color: "#555" }}>— Year-by-year cash vs equity EV</span></div><button onClick={() => setDrill(null)} style={{ fontSize: 11, color: "#666", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Close</button></div>
-        <ResponsiveContainer width="100%" height={185}><BarChart data={drillData.yearly || drillData.bd} margin={{ left: 8, right: 16 }}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" /><XAxis dataKey="year" tick={{ fill: "#444", fontSize: 10, fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} /><YAxis tickFormatter={fmtK} tick={{ fill: "#444", fontSize: 10, fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Bar dataKey="cash" name="Cash EV" stackId="a" fill="#6B7DB3" barSize={26} /><Bar dataKey="equity" name="Equity EV" stackId="a" fill="#C4A265" radius={[4, 4, 0, 0]} barSize={26} /></BarChart></ResponsiveContainer>
-        {mode === "detailed" && detailedPaths[drillData.name]?.scenarios && (<div style={{ display: "flex", gap: 16, marginTop: 8, fontSize: 11, color: "#555", paddingLeft: 4, flexWrap: "wrap" }}>{Object.entries(detailedPaths[drillData.name].scenarios).map(([k, sc]) => (<span key={k}><span style={{ color: k === "bear" ? "#EF4444" : k === "bull" ? "#10B981" : "#F59E0B" }}>{sc.label}</span>{" "}Y{horizon}: <strong style={{ fontFamily: "'Space Mono', monospace", color: "#aaa" }}>{sc.mult[horizon - 1]}× @ {Math.round(sc.prob[horizon - 1] * 100)}%</strong></span>))}</div>)}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div style={{ display: "flex", alignItems: "center", gap: 8 }}><div style={{ width: 10, height: 10, borderRadius: "50%", background: drillData.color }} /><span style={{ fontSize: 13, fontWeight: 700, color: "#ddd" }}>{drillData.name}</span><span style={{ fontSize: 11, color: "#555" }}>— Year-by-year cash vs equity EV (in today's dollars)</span></div><button onClick={() => setDrill(null)} style={{ fontSize: 11, color: "#666", background: "rgba(255,255,255,0.05)", border: "1px solid rgba(255,255,255,0.08)", borderRadius: 5, padding: "4px 10px", cursor: "pointer" }}>Close</button></div>
+        <ResponsiveContainer width="100%" height={185}><BarChart data={drillData.bd} margin={{ left: 8, right: 16 }}><CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.03)" /><XAxis dataKey="year" tick={{ fill: "#444", fontSize: 10, fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} /><YAxis tickFormatter={fmtK} tick={{ fill: "#444", fontSize: 10, fontFamily: "'Space Mono', monospace" }} axisLine={false} tickLine={false} /><Tooltip content={<TT />} /><Bar dataKey="cash" name="Cash EV" stackId="a" fill="#6B7DB3" barSize={26} /><Bar dataKey="equity" name="Equity EV" stackId="a" fill="#C4A265" radius={[4, 4, 0, 0]} barSize={26} /></BarChart></ResponsiveContainer>
       </div>)}
 
       <div style={{ background: "rgba(255,255,255,0.01)", border: "1px solid rgba(255,255,255,0.05)", borderRadius: 10, padding: "16px 14px" }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div><div style={{ fontSize: 11, color: "#666", fontWeight: 700, letterSpacing: 0.5 }}>ASSUMPTIONS</div><div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>{mode === "simple" ? "Expand to tweak cash, equity, multipliers, survival rates, and exit role comp" : "Expand to tweak cash, equity grants, bear/base/bull scenarios, and exit role comp"}</div></div><button onClick={resetAll} style={{ fontSize: 11, fontWeight: 600, color: "#555", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "5px 12px", cursor: "pointer" }}>Reset defaults</button></div>
-        {mode === "simple" ? Object.entries(filteredSimple).map(([n, p]) => <PathEditor key={n} name={n} path={p} color={p.color} onChange={np => setSimplePaths(prev => ({ ...prev, [n]: np }))} isDetailed={false} />) : Object.entries(filteredDetailed).map(([n, p]) => <PathEditor key={n} name={n} path={p} color={p.color} onChange={np => setDetailedPaths(prev => ({ ...prev, [n]: np }))} isDetailed={true} />)}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 12 }}><div><div style={{ fontSize: 11, color: "#666", fontWeight: 700, letterSpacing: 0.5 }}>ASSUMPTIONS BY PATH</div><div style={{ fontSize: 11, color: "#444", marginTop: 2 }}>Expand any path to tweak cash, equity, multipliers, survival rates, and exit comp.</div></div><button onClick={resetAll} style={{ fontSize: 11, fontWeight: 600, color: "#555", background: "rgba(255,255,255,0.04)", border: "1px solid rgba(255,255,255,0.07)", borderRadius: 5, padding: "5px 12px", cursor: "pointer" }}>Reset defaults</button></div>
+        {Object.entries(filtered).map(([n, p]) => <PathEditor key={n} name={n} path={p} color={p.color} onChange={np => setPaths(prev => ({ ...prev, [n]: np }))} />)}
       </div>
 
-      <div style={{ marginTop: 18, padding: "12px 0", borderTop: "1px solid rgba(255,255,255,0.04)" }}>
-        <div style={{ fontSize: 11, color: "#3a3a3a", lineHeight: 1.75, maxWidth: 760 }}>
-          <strong style={{ color: "#555" }}>Exit Role Comp:</strong> Shows annual comp in your next-best role if you leave. The model discounts the full outside option at 5%/yr to compute NPV at departure — e.g., an EM leaving MBB earns $350K+/yr in corp strat, valued as a discounted annuity over remaining years.<br /><br />
-          <strong style={{ color: "#555" }}>Simple:</strong> EV = P(stay) × [cash + grant × mult × P(eq&#8800;0)] + P(leave) × NPV(exit comp, 5% discount).<br />
-          <strong style={{ color: "#555" }}>Detailed:</strong> Replaces single multiplier with bear/base/bull. EV = P(stay) × [cash + grant × &#931;(scenario_mult × scenario_prob)] + P(leave) × NPV(exit comp, 5% discount).<br /><br />
-          <strong style={{ color: "#555" }}>Benchmarks:</strong> MBB ~$246K Y1 TC. IB ~$225K Y1 all-in. PE ~$350K Y1 + carry from Y5. VC ~$175K Y1 + carry from Y7. FAANG L5 ~$390K TC. Corp strat ~$195K TC. Cash = base + bonus.<br />
-          <strong style={{ color: "#555" }}>Not captured:</strong> Discounting on primary path earnings, taxes, cost of living, vesting schedules, non-financial value.
-        </div>
-      </div>
+      <MethodologyPanel />
     </div>
   </div>);
 }
